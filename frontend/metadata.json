@@ -1,0 +1,7 @@
+{
+  "name": "OliveManager Pro",
+  "description": "Système complet de gestion pour usine d'huile d'olive : suivi de production, stocks, camions, ventes vrac/bouteilles et analyses qualité.",
+  "requestFramePermissions": [
+    "geolocation"
+  ]
+}

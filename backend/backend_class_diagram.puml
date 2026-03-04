@@ -1,0 +1,808 @@
+@startuml OlivePro_Backend_ClassDiagram
+
+title OlivePro - Factory Management System\nBackend Class Diagram (Java)
+
+skinparam classAttributeIconSize 0
+skinparam classFontSize 13
+skinparam classHeaderBackgroundColor #3A5A2A
+skinparam classHeaderFontColor #FFFFFF
+skinparam classBorderColor #5A8A4A
+skinparam classBackgroundColor #F0F8EE
+skinparam arrowColor #3A5A2A
+skinparam packageBackgroundColor #EAF5E5
+skinparam packageBorderColor #5A8A4A
+skinparam noteBorderColor #B8860B
+skinparam noteBackgroundColor #FFFACD
+
+' ===========================
+' PACKAGE: Enumerations
+' ===========================
+package "enums" #EAF5E5 {
+
+  enum ProductType {
+    OLIVE
+    NOYAUX
+    HUILE_VRAC
+    HUILE_BOUTEILLE
+    GRIGNONS
+    FITOUR
+  }
+
+  enum Brand {
+    ZITLBLAD
+    ASSLIA
+    SERGHINIA
+    KOUTOBIA
+  }
+
+  enum TransactionType {
+    ACHAT
+    VENTE
+    PRODUCTION
+    CHARGEMENT_CAMION
+    VERSEMENT
+  }
+
+  enum PaymentMethod {
+    ESPECE
+    CAISSE_DIRECTEUR
+    CHEQUE
+    VIREMENT
+    CREDIT
+    TIERS
+  }
+
+  enum PaymentStatus {
+    PAYE
+    PARTIEL
+    IMPAYE
+  }
+
+  enum Currency {
+    MAD
+    EUR
+    USD
+  }
+
+  enum TankStatus {
+    EMPTY
+    FILLING
+    FULL
+    MAINTENANCE
+  }
+
+  enum VehicleType {
+    CAMION
+    CAMIONNETTE
+    UTILITAIRE
+  }
+
+  enum VehicleStatus {
+    DISPONIBLE
+    EN_MISSION
+    MAINTENANCE
+  }
+
+  enum CheckStatus {
+    EN_COFFRE
+    DEPOSE
+    ENCAISSE
+    REJETE
+  }
+
+  enum CheckDirection {
+    RECU
+    EMIS
+  }
+
+  enum EmployeeRole {
+    OUVRIER
+    EMPLOYE
+  }
+
+  enum AttendanceStatus {
+    PRESENT
+    ABSENT
+    CONGE
+    MATIN
+    APRES_MIDI
+  }
+
+  enum ExpenseCategory {
+    ELECTRICITE
+    CARBURANT
+    MAINTENANCE
+    SALAIRES
+    TRANSFERT
+    AUTRE
+  }
+
+  enum ContractStatus {
+    EN_COURS
+    TERMINE
+    ANNULE
+  }
+
+  enum FuelLogType {
+    ACHAT
+    CONSOMMATION
+  }
+
+  enum UserRole {
+    SUPER_ADMIN
+    ADMIN
+    SELLER
+  }
+
+  enum EmailFolder {
+    INBOX
+    SENT
+    TRASH
+  }
+}
+
+' ===========================
+' PACKAGE: Core Domain Models
+' ===========================
+package "domain" #EAF5E5 {
+
+  ' ----- USER MANAGEMENT -----
+  class User {
+    - Long id
+    - String username
+    - String passwordHash
+    - UserRole role
+    - boolean isBlocked
+    - LocalDateTime createdAt
+    - LocalDateTime lastLogin
+    --
+    + boolean isAccessAllowed()
+    + boolean isSuperAdmin()
+    + boolean isRestrictedAdmin()
+  }
+
+  ' ----- TANK (CITERNE) -----
+  class Tank {
+    - Long id
+    - String name
+    - double capacity
+    - double currentLevel
+    - double acidity
+    - double waxes
+    - double avgCost
+    - TankStatus status
+    --
+    + double getUsagePercentage()
+    + double getStockValue()
+    + double getAvailableCapacity()
+    + void updateWeightedAverages(double addedQty, double addedAcidity, double addedWaxes, double addedCost)
+    + void recalculateStatus()
+  }
+
+  ' ----- STOCK ITEM -----
+  class StockItem {
+    - Long id
+    - String name
+    - ProductType type
+    - double quantity
+    - String unit
+    - Brand brand
+    - String bottleSize
+    --
+    + boolean isBottle()
+    + boolean hasEnoughStock(double requestedQty)
+    + void addQuantity(double qty)
+    + void removeQuantity(double qty)
+  }
+
+  ' ----- VEHICLE -----
+  class Vehicle {
+    - Long id
+    - String plateNumber
+    - String driverName
+    - VehicleType type
+    - VehicleStatus status
+    - String currentDestination
+    - String currentLoadType
+    - Double currentLoadQuantity
+    - LocalDateTime lastActive
+    --
+    + void startMission(String destination)
+    + void endMission()
+    + boolean isAvailable()
+    + double getTotalMobileStockQuantity()
+  }
+
+  ' ----- MOBILE STOCK ITEM (Inside Truck) -----
+  class MobileStockItem {
+    - Long id
+    - String name
+    - Brand brand
+    - String bottleSize
+    - int quantity
+    --
+    + void addStock(int qty)
+    + void removeStock(int qty)
+    + boolean hasEnoughStock(int requestedQty)
+  }
+
+  ' ----- TRANSACTION -----
+  class Transaction {
+    - Long id
+    - LocalDateTime date
+    - TransactionType type
+    - ProductType productType
+    - double quantity
+    - String unit
+    - double priceTotal
+    - Double originalAmount
+    - Currency currency
+    - double exchangeRate
+    - String partnerName
+    - String truckPlate
+    - Double acidity
+    - Double waxes
+    - String details
+    - String gpsLocation
+    - PaymentMethod paymentMethod
+    - PaymentStatus paymentStatus
+    - Double amountPaid
+    --
+    + double getAmountDue()
+    + double getAmountInMAD()
+    + boolean isPaid()
+    + boolean isPartiallyPaid()
+    + boolean isSale()
+    + boolean isPurchase()
+  }
+
+  ' ----- TANK DISTRIBUTION (Multi-Tank per Transaction) -----
+  class TankDistribution {
+    - Long id
+    - double quantity
+    --
+    + double getQuantity()
+  }
+
+  ' ----- EXPENSE -----
+  class Expense {
+    - Long id
+    - LocalDateTime date
+    - ExpenseCategory category
+    - String description
+    - double amount
+    - PaymentMethod paymentMethod
+    --
+    + boolean isIncome()
+    + boolean isTransfer()
+  }
+
+  ' ----- CHECK (CHEQUE) -----
+  class BankCheck {
+    - Long id
+    - String number
+    - String bank
+    - double amount
+    - LocalDate dueDate
+    - CheckStatus status
+    - CheckDirection direction
+    - String partnerName
+    --
+    + boolean isOverdue()
+    + boolean isDueSoon(int daysThreshold)
+    + boolean isReceivable()
+  }
+
+  ' ----- BANK ACCOUNT -----
+  class BankAccount {
+    - Long id
+    - String bankName
+    - String accountNumber
+    - Currency currency
+    - double balance
+    --
+    + void deposit(double amount)
+    + void withdraw(double amount)
+    + boolean hasSufficientFunds(double amount)
+    + double getBalanceInMAD(double exchangeRate)
+  }
+
+  ' ----- EMPLOYEE -----
+  class Employee {
+    - Long id
+    - String name
+    - EmployeeRole role
+    - double baseSalary
+    - boolean isActive
+    --
+    + boolean isWorker()
+    + boolean isEmployee()
+    + double getDailySalary()
+  }
+
+  ' ----- ATTENDANCE RECORD -----
+  class AttendanceRecord {
+    - Long id
+    - LocalDate date
+    - AttendanceStatus status
+    - double hoursNormal
+    - double hoursOvertime
+    - Double advanceAmount
+    --
+    + double getEffectiveHours()
+    + double getDayCoefficient()
+    + boolean wasPresent()
+  }
+
+  ' ----- SALARY PAYMENT -----
+  class SalaryPayment {
+    - Long id
+    - LocalDate periodStart
+    - LocalDate periodEnd
+    - double amount
+    - PaymentMethod method
+    - LocalDateTime paymentDate
+    --
+    + boolean isPaid()
+    + String getPeriodLabel()
+  }
+
+  ' ----- FUEL LOG -----
+  class FuelLog {
+    - Long id
+    - LocalDateTime date
+    - FuelLogType type
+    - double quantity
+    - Double cost
+    - String driverName
+    - String plateNumber
+    - double currentStockAfter
+    --
+    + boolean isPurchase()
+    + boolean isConsumption()
+    + Double getCostPerLiter()
+  }
+
+  ' ----- CONTRACT -----
+  class Contract {
+    - Long id
+    - String reference
+    - String clientName
+    - ProductType productType
+    - double targetQuantity
+    - double targetAcidity
+    - double targetWaxes
+    - double priceSell
+    - ContractStatus status
+    - LocalDateTime createdAt
+    --
+    + double getTotalAllocatedQuantity()
+    + double getProgressPercentage()
+    + double getWeightedAvgAcidity()
+    + double getWeightedAvgWaxes()
+    + double getTotalRevenue()
+    + double getTotalCost()
+    + double getProfit()
+    + double getProfitMargin()
+    + void checkAndUpdateStatus()
+  }
+
+  ' ----- CONTRACT ALLOCATION -----
+  class ContractAllocation {
+    - Long id
+    - LocalDateTime date
+    - String sourceName
+    - double quantity
+    - double acidity
+    - double waxes
+    - double costPrice
+    --
+    + double getAllocationRevenue(double priceSell)
+    + double getAllocationProfit(double priceSell)
+  }
+
+  ' ----- INVOICE -----
+  class Invoice {
+    - Long id
+    - String number
+    - LocalDate date
+    - String clientName
+    - String clientAddress
+    - String clientIce
+    - double totalHT
+    - double tvaRate
+    - double tvaAmount
+    - double totalTTC
+    - String amountInWords
+    - String paymentMode
+    --
+    + void recalculateTotals()
+    + String generateInvoiceNumber()
+  }
+
+  ' ----- INVOICE ITEM -----
+  class InvoiceItem {
+    - Long id
+    - String description
+    - int quantity
+    - double unitPrice
+    - double totalPrice
+    --
+    + void recalculateTotalPrice()
+  }
+
+  ' ----- ACTIVITY LOG -----
+  class ActivityLog {
+    - Long id
+    - LocalDateTime date
+    - String username
+    - String action
+    - String details
+    - Double financialAmount
+    --
+    + boolean hasFinancialImpact()
+  }
+
+  ' ----- EMAIL ACCOUNT -----
+  class EmailAccount {
+    - Long id
+    - String email
+    - String displayName
+    - String colorCode
+    --
+    + boolean isInternal()
+    + long getUnreadCount()
+  }
+
+  ' ----- EMAIL MESSAGE -----
+  class EmailMessage {
+    - Long id
+    - EmailFolder folder
+    - String fromAddress
+    - String toAddress
+    - String subject
+    - String body
+    - LocalDateTime sentAt
+    - boolean isRead
+    --
+    + void markAsRead()
+    + void moveToTrash()
+    + boolean isInbox()
+  }
+}
+
+' ===========================
+' PACKAGE: Services (Business Logic)
+' ===========================
+package "service" #EAF5E5 {
+
+  class AuthService {
+    + User login(String username, String password)
+    + void logout(Long userId)
+    + boolean isBlocked(String username)
+    + void blockUser(String targetUsername, String adminUsername)
+    + void unblockUser(String targetUsername, String adminUsername)
+    + User getCurrentUser()
+    + boolean hasPermission(User user, String action)
+  }
+
+  class StockService {
+    + StockItem addStockItem(StockItem item)
+    + StockItem updateStockQuantity(Long itemId, double delta)
+    + void deleteStockItem(Long itemId)
+    + List<StockItem> getAllStock()
+    + List<StockItem> getBottles()
+    + List<StockItem> getRawMaterials()
+    + List<StockItem> getWaste()
+    + boolean checkAvailability(Long itemId, double qty)
+  }
+
+  class TankService {
+    + Tank addTank(Tank tank)
+    + Tank updateTank(Tank tank)
+    + void deleteTank(Long tankId)
+    + void transferOil(Long fromTankId, Long toTankId, double quantity)
+    + void addOilToTank(Long tankId, double qty, double acidity, double waxes, double unitCost)
+    + void removeOilFromTank(Long tankId, double qty)
+    + List<Tank> getAllTanks()
+    + double getTotalVolume()
+    + double getTotalCapacity()
+  }
+
+  class TransactionService {
+    + Transaction createTransaction(Transaction tx)
+    + void deleteTransaction(Long txId)
+    + List<Transaction> getAllTransactions()
+    + List<Transaction> getByPartner(String partnerName)
+    + List<Transaction> getByDateRange(LocalDate start, LocalDate end)
+    + List<Transaction> getByType(TransactionType type)
+    + double getTotalSales()
+    + double getTotalPurchases()
+    + Map<String, PartnerSummary> getPartnersReport()
+    + double getPartnerBalance(String partnerName)
+  }
+
+  class ProductionService {
+    + void recordProduction(Long inputStockId, double inputQty,\n      Long outputTankId, double outputOilQty,\n      double acidity, double waxes,\n      double grignonsQty, double fitourQty)
+    + List<Transaction> getProductionHistory()
+  }
+
+  class AccountingService {
+    + double getCaisseSolde()
+    + double getCaisseDirecteurSolde()
+    + double getTotalReceivables()
+    + double getTotalPayables()
+    + Expense addExpense(Expense expense)
+    + void deleteExpense(Long expenseId)
+    + BankCheck addCheck(BankCheck check)
+    + void deleteCheck(Long checkId)
+    + void updateCheckStatus(Long checkId, CheckStatus status)
+    + BankAccount addBankAccount(BankAccount account)
+    + BankAccount updateBankAccount(BankAccount account)
+    + double getNetProfit()
+    + List<BankCheck> getUrgentChecks(int daysThreshold)
+    + void recordManualCashAdjustment(double amount, String description, boolean isIncome)
+    + void transferToCaisseDirecteur(double amount)
+    + void transferToBank(Long bankAccountId, double amount)
+  }
+
+  class VehicleService {
+    + Vehicle addVehicle(Vehicle vehicle)
+    + void deleteVehicle(Long vehicleId)
+    + void updateVehicleMission(Long vehicleId, String destination, String loadType, double loadQty)
+    + void loadVehicle(Long vehicleId, List<LoadItemRequest> items)
+    + void recordMobileSale(Long vehicleId, MobileSaleRequest saleData)
+    + List<Vehicle> getAllVehicles()
+    + Vehicle getVehicleByPlate(String plateNumber)
+    + SellerStats getSellerStats(Long vehicleId)
+  }
+
+  class HRService {
+    + Employee addEmployee(Employee employee)
+    + void deleteEmployee(Long employeeId)
+    + AttendanceRecord updateAttendance(AttendanceRecord record)
+    + List<AttendanceRecord> getWeeklyAttendance(Long employeeId, LocalDate weekStart)
+    + double calculateWeeklySalary(Long employeeId, LocalDate weekStart)
+    + double calculateMonthlySalary(Long employeeId, LocalDate monthStart)
+    + SalaryPayment paySalary(Long employeeId, LocalDate periodStart, double amount,\n      PaymentMethod method, Long bankAccountId)
+    + void deleteSalaryPayment(Long paymentId)
+    + List<SalaryPayment> getSalaryHistory(Long employeeId)
+  }
+
+  class FuelService {
+    + double getCurrentFuelStock()
+    + void purchaseFuel(double quantity, double cost, PaymentMethod paymentMethod)
+    + void consumeFuel(Long vehicleId, double quantity)
+    + void deleteFuelLog(Long logId)
+    + List<FuelLog> getAllFuelLogs()
+    + Map<Long, Double> getConsumptionByVehicle()
+    + boolean isLowStock()
+  }
+
+  class ContractService {
+    + Contract createContract(Contract contract)
+    + Contract allocateStockToContract(Long contractId, Long tankId, double quantity, double costPrice)
+    + void deleteContract(Long contractId)
+    + void updateContractStatus(Long contractId, ContractStatus status)
+    + List<Contract> getAllContracts()
+    + ContractStats getContractStats(Long contractId)
+  }
+
+  class InvoiceService {
+    + Invoice createInvoice(Invoice invoice)
+    + void deleteInvoice(Long invoiceId)
+    + List<Invoice> getAllInvoices()
+    + Invoice getInvoiceByNumber(String number)
+    + String generateNextInvoiceNumber()
+    + byte[] generateInvoicePDF(Long invoiceId)
+  }
+
+  class EmailService {
+    + EmailMessage sendEmail(Long fromAccountId, String to, String subject, String body)
+    + void markAsRead(Long messageId)
+    + void deleteEmail(Long messageId)
+    + void moveToTrash(Long messageId)
+    + List<EmailMessage> getInbox(Long accountId)
+    + List<EmailMessage> getSent(Long accountId)
+    + long getUnreadCount(Long accountId)
+    + EmailAccount addEmailAccount(String name, String email)
+    + List<EmailAccount> getAllAccounts()
+  }
+
+  class DashboardService {
+    + DashboardStats getDashboardStats()
+    + List<ChartDataPoint> getWeeklySalesChart()
+    + SystemAlerts getSystemAlerts()
+  }
+
+  class ActivityLogService {
+    + void log(String username, String action, String details, Double amount)
+    + List<ActivityLog> getAllLogs()
+    + List<ActivityLog> getLogsByUser(String username)
+    + List<ActivityLog> getLogsByDateRange(LocalDate start, LocalDate end)
+  }
+}
+
+' ===========================
+' PACKAGE: DTOs / Value Objects
+' ===========================
+package "dto" #EAF5E5 {
+
+  class PartnerSummary {
+    + String partnerName
+    + String type
+    + double totalSales
+    + double totalPurchases
+    + double balance
+    + int transactionCount
+    + LocalDateTime lastTransactionDate
+  }
+
+  class SellerStats {
+    + double totalSales
+    + double totalCashCollected
+    + double totalCreditGiven
+    + double totalDeposited
+    + double netCashInHand
+  }
+
+  class DashboardStats {
+    + double totalSales
+    + double netProfit
+    + double totalOilVolume
+    + double totalOilCapacity
+    + double capacityUtilizationPercent
+    + int totalTransactionCount
+  }
+
+  class SystemAlerts {
+    + int unreadEmails
+    + int urgentChecks
+    + int lowFuel
+    + int lowTankCount
+  }
+
+  class ChartDataPoint {
+    + String label
+    + double value
+    + LocalDate date
+  }
+
+  class LoadItemRequest {
+    + Long stockItemId
+    + int quantity
+  }
+
+  class MobileSaleRequest {
+    + String clientName
+    + String gpsLocation
+    + PaymentMethod paymentMethod
+    + PaymentStatus paymentStatus
+    + double amountPaid
+    + List<CartItem> items
+  }
+
+  class CartItem {
+    + Brand brand
+    + String bottleSize
+    + int quantity
+    + double price
+  }
+
+  class ContractStats {
+    + double totalAllocated
+    + double progressPercentage
+    + double avgAcidity
+    + double avgWaxes
+    + double totalCost
+    + double totalRevenue
+    + double profit
+    + double profitMargin
+  }
+}
+
+' ===========================
+' RELATIONSHIPS
+' ===========================
+
+' User <-> Vehicle (Seller login via plate)
+User "1" -- "0..1" Vehicle : "linked seller account"
+
+' Transaction relationships
+Transaction "many" --> "1" Vehicle : "vehicleId (optional)"
+Transaction "many" --> "0..1" BankAccount : "bankAccountId (if wire)"
+Transaction "1" *-- "0..*" TankDistribution : "tankDistributions"
+TankDistribution "many" --> "1" Tank : "tankId"
+
+' Stock loading
+Vehicle "1" *-- "0..*" MobileStockItem : "mobileStock"
+MobileStockItem "many" --> "1" StockItem : "references"
+
+' Contract
+Contract "1" *-- "1..*" ContractAllocation : "allocations"
+ContractAllocation "many" --> "1" Tank : "sourceId"
+
+' Invoice
+Invoice "1" *-- "1..*" InvoiceItem : "items"
+
+' Employee
+Employee "1" -- "0..*" AttendanceRecord : "attendance"
+Employee "1" -- "0..*" SalaryPayment : "salaryPayments"
+SalaryPayment "0..1" --> "0..1" BankAccount : "bankAccountId"
+
+' Email
+EmailAccount "1" -- "0..*" EmailMessage : "messages"
+
+' Fuel
+FuelLog "0..*" --> "0..1" Vehicle : "vehicleId (optional)"
+
+' Services use domain
+AuthService ..> User
+StockService ..> StockItem
+TankService ..> Tank
+TransactionService ..> Transaction
+ProductionService ..> StockItem
+ProductionService ..> Tank
+AccountingService ..> Expense
+AccountingService ..> BankCheck
+AccountingService ..> BankAccount
+AccountingService ..> Transaction
+VehicleService ..> Vehicle
+VehicleService ..> MobileStockItem
+VehicleService ..> StockItem
+HRService ..> Employee
+HRService ..> AttendanceRecord
+HRService ..> SalaryPayment
+FuelService ..> FuelLog
+ContractService ..> Contract
+InvoiceService ..> Invoice
+EmailService ..> EmailMessage
+EmailService ..> EmailAccount
+DashboardService ..> DashboardStats
+DashboardService ..> SystemAlerts
+ActivityLogService ..> ActivityLog
+
+' DTOs
+VehicleService ..> SellerStats
+VehicleService ..> MobileSaleRequest
+VehicleService ..> LoadItemRequest
+TransactionService ..> PartnerSummary
+ContractService ..> ContractStats
+DashboardService ..> ChartDataPoint
+MobileSaleRequest *-- CartItem
+
+note top of AuthService
+  Super Admins: mojo, boss (full access)
+  Restricted Admins: hajar, safae (no financials)
+  Sellers: login via vehicle plate number
+  Blocked users cannot authenticate
+end note
+
+note right of Tank
+  avgCost is recalculated using
+  weighted average on each purchase
+  or production filling operation.
+end note
+
+note bottom of Transaction
+  priceTotal is always stored in MAD.
+  originalAmount + currency + exchangeRate
+  allow multi-currency tracking.
+end note
+
+note right of Contract
+  Progress tracked via total allocated
+  quantity vs targetQuantity.
+  Status auto-set to TERMINE
+  when fully allocated.
+end note
+
+note bottom of AccountingService
+  Caisse Usine = ESPECE flows
+  Caisse Directeur = CAISSE_DIRECTEUR flows
+  Both are derived from transactions + expenses.
+  NOT stored as separate ledger fields.
+end note
+
+@enduml
+
