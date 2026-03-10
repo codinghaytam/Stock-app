@@ -70,6 +70,15 @@ public class HRService {
         return attendanceRepo.save(rec);
     }
 
+    @Transactional
+    public AttendanceRecord updateAttendance(Long id, AttendanceRequest req, String username) {
+        AttendanceRecord rec = attendanceRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("Attendance not found: " + id));
+        rec.setStatus(req.getStatus()); rec.setOvertimeHours(req.getOvertimeHours());
+        rec.setAdvanceAmount(req.getAdvanceAmount()); rec.setNotes(req.getNotes());
+        logService.log(username, "RH", "Mise à jour présence: " + rec.getEmployee().getFullName(), null);
+        return attendanceRepo.save(rec);
+    }
+
     public List<AttendanceRecord> getAttendance(Long employeeId, LocalDate from, LocalDate to) {
         return attendanceRepo.findByEmployeeIdAndDateBetween(employeeId, from, to);
     }
@@ -98,6 +107,12 @@ public class HRService {
         double net = gross - advances;
         String period = from.toString() + " / " + to.toString();
         return new SalaryCalculationResponse(employeeId, emp.getFullName(), period, gross, advances, net, daysPresent, overtime);
+    }
+
+    @Transactional
+    public void deleteSalary(Long id, String username) {
+        salaryRepo.deleteById(id);
+        logService.log(username, "Salaire", "Suppression id=" + id, null);
     }
 
     @Transactional

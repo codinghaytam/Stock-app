@@ -53,5 +53,10 @@ public class ContractController {
     public ResponseEntity<ContractStatsResponse> stats(@PathVariable Long id) {
         return ResponseEntity.ok(service.getStats(id));
     }
-}
 
+    @DeleteMapping("/{id}")
+    public ResponseEntity<Void> delete(@PathVariable Long id, @AuthenticationPrincipal UserDetails user) {
+        service.deleteContract(id, user.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+}

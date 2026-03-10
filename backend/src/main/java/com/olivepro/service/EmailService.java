@@ -30,6 +30,13 @@ public class EmailService {
 
     public List<EmailAccount> getAccounts() { return accountRepo.findAll(); }
 
+    @Transactional
+    public EmailAccount createAccount(EmailAccount account, String username) {
+        EmailAccount saved = accountRepo.save(account);
+        logService.log(username, "EmailAccount", "Création: " + saved.getAddress(), null);
+        return saved;
+    }
+
     public List<EmailMessage> getFolder(Long accountId, EmailFolder folder) {
         return messageRepo.findByAccountIdAndFolderOrderByCreatedAtDesc(accountId, folder);
     }
@@ -76,6 +83,17 @@ public class EmailService {
     }
 
     @Transactional
+    public EmailMessage moveToTrash(Long messageId, String username) {
+        EmailMessage msg = messageRepo.findById(messageId)
+                .orElseThrow(() -> new ResourceNotFoundException("Message not found: " + messageId));
+        msg.setFolder(EmailFolder.TRASH);
+        EmailMessage saved = messageRepo.save(msg);
+        logService.log(username, "Email", "Message déplacé dans la corbeille: " + messageId, null);
+        broadcaster.broadcast();
+        return saved;
+    }
+
+    @Transactional
     public void deleteMessage(Long messageId, String username) {
         EmailMessage msg = messageRepo.findById(messageId)
                 .orElseThrow(() -> new ResourceNotFoundException("Message not found: " + messageId));
@@ -84,4 +102,3 @@ public class EmailService {
         logService.log(username, "Email", "Message déplacé dans la corbeille: " + messageId, null);
     }
 }
-

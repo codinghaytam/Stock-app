@@ -6,17 +6,21 @@ import com.olivepro.dto.request.CashDropRequest;
 import com.olivepro.dto.request.MobileSaleRequest;
 import com.olivepro.dto.request.TransactionRequest;
 import com.olivepro.dto.response.SellerStatsResponse;
-import com.olivepro.enums.*;
+import com.olivepro.enums.Currency;
+import com.olivepro.enums.PaymentMethod;
+import com.olivepro.enums.PaymentStatus;
+import com.olivepro.enums.TransactionType;
+import com.olivepro.exception.UnauthorizedException;
+import com.olivepro.repository.UserRepository;
 import com.olivepro.service.TransactionService;
 import com.olivepro.service.VehicleService;
-import io.jsonwebtoken.Claims;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.prepost.PreAuthorize;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
-import com.olivepro.repository.UserRepository;
+
 import java.util.ArrayList;
 import java.util.List;
 
@@ -52,6 +56,18 @@ public class SellerController {
         return ResponseEntity.ok(vehicleService.getSellerStats(getVehicleId(user)));
     }
 
+    @GetMapping("/vehicle")
+    public ResponseEntity<com.olivepro.domain.Vehicle> myVehicle(@AuthenticationPrincipal UserDetails user) {
+        Long vid = getVehicleId(user);
+        return ResponseEntity.ok(vehicleService.getById(vid));
+    }
+
+    @GetMapping("/transactions")
+    public ResponseEntity<List<Transaction>> myTransactions(@AuthenticationPrincipal UserDetails user) {
+        Long vid = getVehicleId(user);
+        return ResponseEntity.ok(transactionService.getByVehicle(vid));
+    }
+
     @PostMapping("/sale")
     public ResponseEntity<List<Transaction>> sale(@Valid @RequestBody MobileSaleRequest req,
                                                    @AuthenticationPrincipal UserDetails user) {
@@ -76,4 +92,3 @@ public class SellerController {
         return ResponseEntity.ok(transactionService.create(txReq, user.getUsername()));
     }
 }
-

@@ -2,7 +2,11 @@ package com.olivepro.service;
 
 import com.olivepro.domain.*;
 import com.olivepro.dto.request.TransactionRequest;
-import com.olivepro.enums.*;
+import com.olivepro.enums.Currency;
+import com.olivepro.enums.PaymentMethod;
+import com.olivepro.enums.PaymentStatus;
+import com.olivepro.enums.ProductType;
+import com.olivepro.enums.TransactionType;
 import com.olivepro.exception.ResourceNotFoundException;
 import com.olivepro.repository.*;
 import org.slf4j.Logger;
@@ -11,6 +15,8 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 @Service
 public class TransactionService {
@@ -90,5 +96,44 @@ public class TransactionService {
         repo.deleteById(id);
         logService.log(username, "Transaction", "Suppression id=" + id, null);
     }
-}
 
+    // Partner report aggregation
+    public List<Map<String, Object>> partnerReport() {
+        List<Object[]> rows = repo.aggregateByPartner();
+        // rows: partnerName, type, count, sumPriceTotal, lastDate
+        Map<String, Map<String, Object>> map = new java.util.HashMap<>();
+        for (Object[] r : rows) {
+            String partner = r[0] != null ? r[0].toString() : "";
+            String type = r[1] != null ? r[1].toString() : "";
+            long count = 0;
+            Object cntObj = r[2];
+            if (cntObj instanceof Number) count = ((Number) cntObj).longValue();
+            double total = r[3] != null ? ((Number) r[3]).doubleValue() : 0.0;
+            java.time.LocalDateTime last = null;
+            if (r[4] != null) {
+                if (r[4] instanceof java.time.LocalDateTime) last = (java.time.LocalDateTime) r[4];
+                else if (r[4] instanceof java.sql.Timestamp) last = ((java.sql.Timestamp) r[4]).toLocalDateTime();
+            }
+            var m = map.computeIfAbsent(partner, k -> new java.util.HashMap<String,Object>());
+            m.putIfAbsent("partnerName", partner);
+            if (type.equals("VENTE")) {
+                m.put("totalSales", ((Number)m.getOrDefault("totalSales", 0)).doubleValue() + total);
+            } else if (type.equals("ACHAT")) {
+                m.put("totalPurchases", ((Number)m.getOrDefault("totalPurchases", 0)).doubleValue() + total);
+            }
+            m.put("transactionCount", ((Number)m.getOrDefault("transactionCount", 0)).longValue() + count);
+            if (last != null) m.put("lastTransactionDate", last.toString());
+        }
+        // compute balance
+        return map.values().stream().map(m -> {
+            double sales = ((Number)m.getOrDefault("totalSales", 0)).doubleValue();
+            double purchases = ((Number)m.getOrDefault("totalPurchases", 0)).doubleValue();
+            m.put("balance", sales - purchases);
+            return m;
+        }).collect(Collectors.toList());
+    }
+
+    public double partnerBalance(String partnerName) {
+        return repo.partnerNetBalance(partnerName);
+    }
+}

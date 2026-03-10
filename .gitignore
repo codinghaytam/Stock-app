@@ -3,3 +3,5 @@ frontend/dist
 frontend/.env
 .idea
 backend/src/main/resources/application.properties
+# Docker compose secrets — never commit the real env file
+.env

@@ -8,7 +8,12 @@ import java.util.ArrayList;
 import java.util.List;
 
 @Entity
-@Table(name = "transactions")
+@Table(name = "transactions", indexes = {
+        @Index(name = "idx_tx_partner", columnList = "partnerName"),
+        @Index(name = "idx_tx_type", columnList = "type"),
+        @Index(name = "idx_tx_createdAt", columnList = "createdAt"),
+        @Index(name = "idx_tx_vehicle", columnList = "vehicleId")
+})
 @Data @NoArgsConstructor @AllArgsConstructor @Builder
 public class Transaction {
     @Id @GeneratedValue(strategy = GenerationType.IDENTITY)
@@ -48,4 +53,3 @@ public class Transaction {
     private List<TankDistribution> tankDistributions = new ArrayList<>();
     @PrePersist void prePersist() { this.createdAt = LocalDateTime.now(); }
 }
-

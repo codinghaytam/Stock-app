@@ -3,7 +3,6 @@ package com.olivepro.controller;
 import com.olivepro.domain.*;
 import com.olivepro.dto.request.*;
 import com.olivepro.dto.response.CaisseResponse;
-import com.olivepro.enums.CheckStatus;
 import com.olivepro.service.AccountingService;
 import jakarta.validation.Valid;
 import org.springframework.http.ResponseEntity;
@@ -26,9 +25,40 @@ public class AccountingController {
     @GetMapping("/caisse")
     public ResponseEntity<CaisseResponse> getCaisse() {
         double bankBalance = service.getBankAccounts().stream().mapToDouble(BankAccount::getBalance).sum();
+        double receivables = service.computeTotalReceivables();
+        double payables = service.computeTotalPayables();
         return ResponseEntity.ok(new CaisseResponse(
                 service.getCaisseUsine(), service.getCaisseDirecteur(),
-                service.getNetProfit(), 0, 0, bankBalance));
+                service.getNetProfit(), receivables, payables, bankBalance));
+    }
+
+    @PostMapping("/cash/manual")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> manualCash(@RequestBody Map<String, Object> body,
+                                           @AuthenticationPrincipal UserDetails user) {
+        double amount = Double.parseDouble(body.get("amount").toString());
+        String desc = (String) body.getOrDefault("description", "Opération manuelle");
+        service.manualCash(amount, desc, user.getUsername());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/cash/transfer-bank")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> transferBank(@RequestBody Map<String, Object> body,
+                                             @AuthenticationPrincipal UserDetails user) {
+        Long bankAccountId = Long.valueOf(body.get("bankAccountId").toString());
+        double amount = Double.parseDouble(body.get("amount").toString());
+        service.transferToBank(bankAccountId, amount, user.getUsername());
+        return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/cash/transfer-directeur")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> transferDirector(@RequestBody Map<String, Object> body,
+                                                 @AuthenticationPrincipal UserDetails user) {
+        double amount = Double.parseDouble(body.get("amount").toString());
+        service.transferToDirector(amount, user.getUsername());
+        return ResponseEntity.ok().build();
     }
 
     // ── Expenses ─────────────────────────────────────────────────────────────
@@ -38,7 +68,7 @@ public class AccountingController {
     @PostMapping("/expenses")
     public ResponseEntity<Expense> addExpense(@Valid @RequestBody ExpenseRequest req,
                                                @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(service.createExpense(req, user.getUsername()));
+        return ResponseEntity.status(201).body(service.createExpense(req, user.getUsername()));
     }
 
     @DeleteMapping("/expenses/{id}")
@@ -58,7 +88,7 @@ public class AccountingController {
     @PostMapping("/checks")
     public ResponseEntity<BankCheck> addCheck(@Valid @RequestBody BankCheckRequest req,
                                                @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(service.createCheck(req, user.getUsername()));
+        return ResponseEntity.status(201).body(service.createCheck(req, user.getUsername()));
     }
 
     @PatchMapping("/checks/{id}/status")
@@ -81,7 +111,7 @@ public class AccountingController {
     @PostMapping("/bank-accounts")
     public ResponseEntity<BankAccount> addBankAccount(@Valid @RequestBody BankAccountRequest req,
                                                        @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(service.createBankAccount(req, user.getUsername()));
+        return ResponseEntity.status(201).body(service.createBankAccount(req, user.getUsername()));
     }
 
     @PutMapping("/bank-accounts/{id}")
@@ -91,4 +121,3 @@ public class AccountingController {
         return ResponseEntity.ok(service.updateBankAccount(id, req, user.getUsername()));
     }
 }
-

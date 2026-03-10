@@ -10,6 +10,7 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 import java.util.List;
+import java.util.Map;
 
 @RestController
 @RequestMapping("/api/transactions")
@@ -37,5 +38,15 @@ public class TransactionController {
         service.delete(id, user.getUsername());
         return ResponseEntity.noContent().build();
     }
-}
 
+    @GetMapping("/partners/report")
+    public ResponseEntity<List<Map<String, Object>>> partnerReport() {
+        return ResponseEntity.ok(service.partnerReport());
+    }
+
+    @GetMapping("/partners/{name}/balance")
+    public ResponseEntity<Map<String, Object>> partnerBalance(@PathVariable String name) {
+        double bal = service.partnerBalance(name);
+        return ResponseEntity.ok(Map.of("partnerName", name, "balance", bal));
+    }
+}

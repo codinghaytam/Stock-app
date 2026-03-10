@@ -70,5 +70,13 @@ public class AdminService {
         return new MeResponse(saved.getId(), saved.getUsername(), saved.getRole(),
                 saved.isBlocked(), saved.getVehicleId(), saved.getLastLogin());
     }
-}
 
+    @Transactional
+    public void deleteUser(Long id, String callerUsername) {
+        User u = userRepo.findById(id).orElseThrow(() -> new ResourceNotFoundException("User not found: " + id));
+        if (u.getRole() == com.olivepro.enums.UserRole.SUPER_ADMIN) throw new BusinessRuleException("Cannot delete SUPER_ADMIN");
+        userRepo.delete(u);
+        logService.log(callerUsername, "Admin", "Utilisateur supprimé: " + u.getUsername(), null);
+    }
+
+}

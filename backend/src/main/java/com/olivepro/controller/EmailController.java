@@ -25,6 +25,13 @@ public class EmailController {
     @GetMapping("/accounts")
     public ResponseEntity<List<EmailAccount>> accounts() { return ResponseEntity.ok(service.getAccounts()); }
 
+    @PostMapping("/accounts")
+    @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
+    public ResponseEntity<EmailAccount> createAccount(@Valid @RequestBody EmailAccount account,
+                                                      @AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.status(201).body(service.createAccount(account, user.getUsername()));
+    }
+
     @GetMapping("/accounts/{id}/folder/{folder}")
     public ResponseEntity<List<EmailMessage>> folder(@PathVariable Long id,
                                                       @PathVariable EmailFolder folder) {
@@ -39,12 +46,17 @@ public class EmailController {
     @PostMapping("/send")
     public ResponseEntity<EmailMessage> send(@Valid @RequestBody SendEmailRequest req,
                                               @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(service.send(req, user.getUsername()));
+        return ResponseEntity.status(201).body(service.send(req, user.getUsername()));
     }
 
     @PatchMapping("/messages/{id}/read")
     public ResponseEntity<EmailMessage> markRead(@PathVariable Long id) {
         return ResponseEntity.ok(service.markRead(id));
+    }
+
+    @PatchMapping("/messages/{id}/trash")
+    public ResponseEntity<EmailMessage> moveToTrash(@PathVariable Long id, @AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(service.moveToTrash(id, user.getUsername()));
     }
 
     @DeleteMapping("/messages/{id}")
@@ -53,4 +65,3 @@ public class EmailController {
         return ResponseEntity.noContent().build();
     }
 }
-

@@ -194,5 +194,10 @@ public class InvoiceService {
         }).collect(Collectors.toList()));
         return r;
     }
+
+    // Public preview method for next invoice number
+    public String previewNextNumber() {
+        return generateNumber();
+    }
 }
 

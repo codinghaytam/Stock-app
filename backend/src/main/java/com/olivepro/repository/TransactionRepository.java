@@ -30,5 +30,11 @@ public interface TransactionRepository extends JpaRepository<Transaction, Long> 
 
     @Query("SELECT COALESCE(SUM(t.amountPaid),0) FROM Transaction t WHERE t.type = 'VERSEMENT'")
     double sumVersements();
-}
 
+    // Partner aggregates
+    @Query("SELECT t.partnerName, t.type, COUNT(t), COALESCE(SUM(t.priceTotal),0), COALESCE(MAX(t.createdAt), null) FROM Transaction t GROUP BY t.partnerName, t.type")
+    List<Object[]> aggregateByPartner();
+
+    @Query("SELECT COALESCE(SUM(CASE WHEN t.type = 'VENTE' THEN t.priceTotal - t.amountPaid WHEN t.type = 'ACHAT' THEN - (t.priceTotal - t.amountPaid) ELSE 0 END),0) FROM Transaction t WHERE t.partnerName = ?1")
+    double partnerNetBalance(String partnerName);
+}

@@ -56,6 +56,11 @@ public class GlobalExceptionHandler {
         return buildResponse(ex, HttpStatus.FORBIDDEN, request);
     }
 
+    @ExceptionHandler(org.springframework.security.authentication.LockedException.class)
+    public ResponseEntity<Map<String, Object>> handleLocked(org.springframework.security.authentication.LockedException ex, HttpServletRequest request) {
+        return buildResponse(ex, HttpStatus.FORBIDDEN, request);
+    }
+
     @ExceptionHandler(MethodArgumentNotValidException.class)
     public ResponseEntity<Map<String, Object>> handleValidation(MethodArgumentNotValidException ex, HttpServletRequest request) {
         String details = ex.getFieldErrors().stream().map(fe -> fe.getField() + ": " + fe.getDefaultMessage()).collect(Collectors.joining(", "));
@@ -68,4 +73,3 @@ public class GlobalExceptionHandler {
         return buildResponse(ex, HttpStatus.INTERNAL_SERVER_ERROR, request);
     }
 }
-

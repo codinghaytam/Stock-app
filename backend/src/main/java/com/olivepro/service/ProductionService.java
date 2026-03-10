@@ -2,13 +2,18 @@ package com.olivepro.service;
 
 import com.olivepro.domain.Transaction;
 import com.olivepro.dto.request.ProductionRequest;
-import com.olivepro.enums.*;
+import com.olivepro.enums.Currency;
+import com.olivepro.enums.PaymentMethod;
+import com.olivepro.enums.PaymentStatus;
+import com.olivepro.enums.ProductType;
+import com.olivepro.enums.TransactionType;
 import com.olivepro.repository.TransactionRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import java.util.ArrayList;
+import java.util.List;
 
 @Service
 public class ProductionService {
@@ -53,5 +58,8 @@ public class ProductionService {
         log.info("Production: {}L oil -> tank {}", req.getOutputOilQty(), req.getOutputTankId());
         return saved;
     }
-}
 
+    public List<Transaction> getHistory() {
+        return txRepo.findByType(TransactionType.PRODUCTION);
+    }
+}

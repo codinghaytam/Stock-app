@@ -30,7 +30,7 @@ public class InvoiceController {
     @PostMapping
     public ResponseEntity<InvoiceResponse> create(@Valid @RequestBody InvoiceRequest req,
                                                    @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(service.create(req, user.getUsername()));
+        return ResponseEntity.status(201).body(service.create(req, user.getUsername()));
     }
 
     @DeleteMapping("/{id}")
@@ -47,5 +47,10 @@ public class InvoiceController {
                 .contentType(MediaType.APPLICATION_PDF)
                 .body(bytes);
     }
-}
 
+    @GetMapping("/next-number")
+    public ResponseEntity<Object> nextNumber() {
+        String next = service.previewNextNumber();
+        return ResponseEntity.ok(java.util.Map.of("nextNumber", next));
+    }
+}

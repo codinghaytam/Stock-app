@@ -26,7 +26,7 @@ public class AdminController {
                                                     @AuthenticationPrincipal UserDetails caller) {
         String plate = (String) body.get("plateNumber");
         Long vehicleId = body.get("vehicleId") != null ? Long.valueOf(body.get("vehicleId").toString()) : null;
-        return ResponseEntity.ok(service.createSellerUser(plate, vehicleId, caller.getUsername()));
+        return ResponseEntity.status(201).body(service.createSellerUser(plate, vehicleId, caller.getUsername()));
     }
 
     @PostMapping("/users/block")
@@ -42,5 +42,10 @@ public class AdminController {
         service.unblockUser(body.get("username"), caller.getUsername());
         return ResponseEntity.ok().build();
     }
-}
 
+    @DeleteMapping("/users/{id}")
+    public ResponseEntity<Void> deleteUser(@PathVariable Long id, @AuthenticationPrincipal UserDetails caller) {
+        service.deleteUser(id, caller.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+}

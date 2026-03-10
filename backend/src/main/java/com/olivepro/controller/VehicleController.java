@@ -29,7 +29,7 @@ public class VehicleController {
     @PostMapping
     public ResponseEntity<Vehicle> create(@Valid @RequestBody VehicleRequest req,
                                            @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(service.create(req, user.getUsername()));
+        return ResponseEntity.status(201).body(service.create(req, user.getUsername()));
     }
 
     @PutMapping("/{id}")
@@ -66,7 +66,6 @@ public class VehicleController {
     public ResponseEntity<List<Transaction>> sale(@PathVariable Long id,
                                                    @Valid @RequestBody MobileSaleRequest req,
                                                    @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(service.mobileSale(id, req, user.getUsername()));
+        return ResponseEntity.status(201).body(service.mobileSale(id, req, user.getUsername()));
     }
 }
-

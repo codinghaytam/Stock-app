@@ -26,9 +26,26 @@ public class FuelController {
     @GetMapping("/stats")
     public ResponseEntity<FuelStatsResponse> stats() { return ResponseEntity.ok(service.getStats()); }
 
+    @GetMapping("/stock")
+    public ResponseEntity<Object> stockOnly() { return ResponseEntity.ok(service.getStats()); }
+
     @PostMapping
     public ResponseEntity<FuelLog> add(@Valid @RequestBody FuelLogRequest req,
                                         @AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(service.addLog(req, user.getUsername()));
+    }
+
+    @PostMapping("/purchase")
+    public ResponseEntity<FuelLog> purchase(@Valid @RequestBody FuelLogRequest req,
+                                            @AuthenticationPrincipal UserDetails user) {
+        req.setType(com.olivepro.enums.FuelLogType.ACHAT);
+        return ResponseEntity.ok(service.addLog(req, user.getUsername()));
+    }
+
+    @PostMapping("/consume")
+    public ResponseEntity<FuelLog> consume(@Valid @RequestBody FuelLogRequest req,
+                                           @AuthenticationPrincipal UserDetails user) {
+        req.setType(com.olivepro.enums.FuelLogType.CONSOMMATION);
         return ResponseEntity.ok(service.addLog(req, user.getUsername()));
     }
 
@@ -38,4 +55,3 @@ public class FuelController {
         return ResponseEntity.noContent().build();
     }
 }
-

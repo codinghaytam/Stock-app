@@ -28,7 +28,7 @@ public class HRController {
     @PostMapping("/employees")
     public ResponseEntity<Employee> addEmployee(@Valid @RequestBody EmployeeRequest req,
                                                  @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(service.createEmployee(req, user.getUsername()));
+        return ResponseEntity.status(201).body(service.createEmployee(req, user.getUsername()));
     }
 
     @PutMapping("/employees/{id}")
@@ -48,6 +48,13 @@ public class HRController {
     public ResponseEntity<AttendanceRecord> mark(@Valid @RequestBody AttendanceRequest req,
                                                   @AuthenticationPrincipal UserDetails user) {
         return ResponseEntity.ok(service.markAttendance(req, user.getUsername()));
+    }
+
+    @PutMapping("/attendance/{id}")
+    public ResponseEntity<AttendanceRecord> updateAttendance(@PathVariable Long id,
+                                                              @Valid @RequestBody AttendanceRequest req,
+                                                              @AuthenticationPrincipal UserDetails user) {
+        return ResponseEntity.ok(service.updateAttendance(id, req, user.getUsername()));
     }
 
     @GetMapping("/attendance")
@@ -70,12 +77,18 @@ public class HRController {
     @PreAuthorize("hasRole('SUPER_ADMIN')")
     public ResponseEntity<SalaryPayment> pay(@Valid @RequestBody SalaryPaymentRequest req,
                                               @AuthenticationPrincipal UserDetails user) {
-        return ResponseEntity.ok(service.paySalary(req, user.getUsername()));
+        return ResponseEntity.status(201).body(service.paySalary(req, user.getUsername()));
     }
 
     @GetMapping("/salaries")
     public ResponseEntity<List<SalaryPayment>> salaries(@RequestParam(required = false) Long employeeId) {
         return ResponseEntity.ok(service.getSalaryPayments(employeeId));
     }
-}
 
+    @DeleteMapping("/salaries/{id}")
+    @PreAuthorize("hasRole('SUPER_ADMIN')")
+    public ResponseEntity<Void> deleteSalary(@PathVariable Long id, @AuthenticationPrincipal UserDetails user) {
+        service.deleteSalary(id, user.getUsername());
+        return ResponseEntity.noContent().build();
+    }
+}

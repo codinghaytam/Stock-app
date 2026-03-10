@@ -10,6 +10,8 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.List;
+
 @RestController
 @RequestMapping("/api/production")
 @PreAuthorize("hasAnyRole('ADMIN','SUPER_ADMIN')")
@@ -23,5 +25,9 @@ public class ProductionController {
                                                 @AuthenticationPrincipal UserDetails user) {
         return ResponseEntity.ok(service.produce(req, user.getUsername()));
     }
-}
 
+    @GetMapping("/history")
+    public ResponseEntity<List<Transaction>> history() {
+        return ResponseEntity.ok(service.getHistory());
+    }
+}

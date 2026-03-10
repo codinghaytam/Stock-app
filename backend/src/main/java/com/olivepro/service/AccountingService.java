@@ -2,7 +2,10 @@ package com.olivepro.service;
 
 import com.olivepro.domain.*;
 import com.olivepro.dto.request.*;
-import com.olivepro.enums.*;
+import com.olivepro.enums.CheckStatus;
+import com.olivepro.enums.Currency;
+import com.olivepro.enums.ExpenseCategory;
+import com.olivepro.enums.PaymentMethod;
 import com.olivepro.exception.BusinessRuleException;
 import com.olivepro.exception.ResourceNotFoundException;
 import com.olivepro.repository.*;
@@ -66,6 +69,46 @@ public class AccountingService {
         double expensesEspece = expenseRepo.sumPositiveByPaymentMethod(PaymentMethod.ESPECE);
         double incomeEspece = -expenseRepo.sumNegativeByPaymentMethod(PaymentMethod.ESPECE);
         return venteEspece + versements - achatEspece - expensesEspece + incomeEspece;
+    }
+
+    // compute total receivables (VENTE unpaid amounts)
+    public double computeTotalReceivables() {
+        return txRepo.findByType(com.olivepro.enums.TransactionType.VENTE).stream()
+                .filter(t -> t.getPaymentStatus() != com.olivepro.enums.PaymentStatus.PAYE)
+                .mapToDouble(t -> t.getPriceTotal() - t.getAmountPaid()).sum();
+    }
+
+    // compute total payables (ACHAT unpaid amounts)
+    public double computeTotalPayables() {
+        return txRepo.findByType(com.olivepro.enums.TransactionType.ACHAT).stream()
+                .filter(t -> t.getPaymentStatus() != com.olivepro.enums.PaymentStatus.PAYE)
+                .mapToDouble(t -> t.getPriceTotal() - t.getAmountPaid()).sum();
+    }
+
+    @Transactional
+    public void manualCash(double amount, String description, String username) {
+        // positive = income, negative = expense
+        com.olivepro.dto.request.ExpenseRequest req = new com.olivepro.dto.request.ExpenseRequest();
+        req.setDescription(description); req.setAmount(amount);
+        req.setCategory(com.olivepro.enums.ExpenseCategory.AUTRE);
+        req.setPaymentMethod(amount >= 0 ? PaymentMethod.ESPECE : PaymentMethod.ESPECE);
+        req.setDate(java.time.LocalDate.now());
+        createExpense(req, username);
+    }
+
+    @Transactional
+    public void transferToBank(Long bankAccountId, double amount, String username) {
+        updateBalance(bankAccountId, amount);
+        logService.log(username, "Banque Transfer", "Transfer to bankId=" + bankAccountId + " amount=" + amount, amount);
+    }
+
+    @Transactional
+    public void transferToDirector(double amount, String username) {
+        // represent as an expense from usine to directeur
+        createExpense(new com.olivepro.dto.request.ExpenseRequest() {{
+            setDescription("Transfert vers directeur"); setAmount(amount); setCategory(com.olivepro.enums.ExpenseCategory.TRANSFERT);
+            setPaymentMethod(PaymentMethod.CAISSE_DIRECTEUR); setDate(java.time.LocalDate.now());
+        }}, username);
     }
 
     public double getCaisseDirecteur() {
@@ -148,4 +191,3 @@ public class AccountingService {
         });
     }
 }
-

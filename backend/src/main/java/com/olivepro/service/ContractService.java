@@ -37,6 +37,14 @@ public class ContractService {
     }
 
     @Transactional
+    public void deleteContract(Long id, String username) {
+        Contract c = getById(id);
+        if (c.getStatus() != ContractStatus.ANNULE) throw new com.olivepro.exception.BusinessRuleException("Only annulled contracts can be deleted");
+        contractRepo.delete(c);
+        logService.log(username, "Contrat", "Suppression: " + c.getClientName(), null);
+    }
+
+    @Transactional
     public Contract create(ContractRequest req, String username) {
         Contract c = Contract.builder()
                 .clientName(req.getClientName()).reference(req.getReference())
@@ -96,4 +104,3 @@ public class ContractService {
                 avgAcidity, avgWaxes, totalCost, totalRevenue, profit, margin);
     }
 }
-
