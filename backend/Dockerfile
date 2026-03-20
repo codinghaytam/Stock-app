@@ -32,13 +32,13 @@ USER appuser
 EXPOSE 8080
 
 # Recommended env vars (override at runtime)
-ENV SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/olivepro
-ENV SPRING_DATASOURCE_USERNAME=postgres
-ENV SPRING_DATASOURCE_PASSWORD=your_password
-ENV SPRING_JPA_HIBERNATE_DDL_AUTO=update
-ENV APP_JWT_SECRET=change_this_to_a_strong_256bit_secret_key
-ENV APP_JWT_EXPIRATION_MS=86400000
-ENV APP_CORS_ALLOWED_ORIGIN=http://localhost:5173
+ENV SPRING_DATASOURCE_URL="jdbc:postgresql://ep-little-leaf-ad3ej5bo-pooler.c-2.us-east-1.aws.neon.tech/neondb?user=neondb_owner&password=npg_wpGYxiXI8qn4&sslmode=require&channelBinding=require"
+ENV SPRING_DATASOURCE_USERNAME="neondb_owner"
+ENV SPRING_DATASOURCE_PASSWORD="npg_wpGYxiXI8qn4"
+ENV SPRING_JPA_HIBERNATE_DDL_AUTO="update"
+ENV APP_JWT_SECRET="XsQklMNNq9QNv2NlB9ZpzYXFxZizJQF3cAA7edZv8pB"
+ENV APP_JWT_EXPIRATION_MS="86400000"
+ENV APP_CORS_ALLOWED_ORIGIN=*
 
 # JVM tuning (easy override)
 ENV JAVA_OPTS="-Xms256m -Xmx512m -XX:+UseG1GC"

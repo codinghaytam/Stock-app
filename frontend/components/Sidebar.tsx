@@ -15,7 +15,6 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, username, al
     { id: 'invoices', label: 'Factures', icon: FileText },
     { id: 'contracts', label: 'Suivi Contrats', icon: FileSignature },
     { id: 'fuel', label: 'Gestion Carburant', icon: Fuel }, 
-    { id: 'emails', label: 'Messagerie', icon: Mail },
     { id: 'sellers', label: 'Suivi Vendeurs', icon: BarChart2 },
     { id: 'stock', label: 'Stocks & Citernes', icon: Database },
     { id: 'production', label: 'Production', icon: Factory },

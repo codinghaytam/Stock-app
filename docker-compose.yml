@@ -1,3 +1,4 @@
+version: '3.9'
 
 services:
 
@@ -8,40 +9,40 @@ services:
       dockerfile: Dockerfile
     container_name: olivepro-backend
     restart: unless-stopped
+    env_file:
+      - .env
     ports:
       - "8080:8080"
     environment:
-      # ── Neon PostgreSQL (external) ──────────────────────────────────────────
-      SPRING_DATASOURCE_URL: ${NEON_DATASOURCE_URL}
-      SPRING_DATASOURCE_USERNAME: ${NEON_DB_USERNAME}
-      SPRING_DATASOURCE_PASSWORD: ${NEON_DB_PASSWORD}
-      SPRING_JPA_HIBERNATE_DDL_AUTO: update
-      SPRING_JPA_SHOW_SQL: "false"
-      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
-      # Neon uses TLS — required
-      SPRING_DATASOURCE_HIKARI_SSL: "true"
-      SPRING_DATASOURCE_HIKARI_DATA_SOURCE_PROPERTIES_SSL_MODE: require
-      # ── JWT ─────────────────────────────────────────────────────────────────
-      APP_JWT_SECRET: ${JWT_SECRET}
+      # ── PostgreSQL (Neon external) ─────────────────────────────────────────
+      SPRING_DATASOURCE_URL: ${DB_URL:-jdbc:postgresql://ep-little-leaf-ad3ej5bo-pooler.c-2.us-east-1.aws.neon.tech/neondb?sslmode=require}
+      SPRING_DATASOURCE_USERNAME: ${DB_USER:-neondb_owner}
+      SPRING_DATASOURCE_PASSWORD: ${DB_PASSWORD:-npg_wpGYxiXI8qn4}
+      SPRING_JPA_HIBERNATE_DDL_AUTO: ${DB_DDL_AUTO:-update}
+      # ── JWT Configuration ─────────────────────────────────────────────────
+      APP_JWT_SECRET: ${JWT_SECRET:-XsQklMNNq9QNv2NlB9ZpzYXFxZizJQF3cAA7edZv8pB}
       APP_JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
-      # ── CORS (point to frontend origin) ────────────────────────────────────
-      APP_CORS_ALLOWED_ORIGIN: ${FRONTEND_ORIGIN:-http://localhost:80}
-      # ── Fuel threshold ──────────────────────────────────────────────────────
-      APP_FUEL_LOW_STOCK_THRESHOLD: ${FUEL_LOW_STOCK_THRESHOLD:-500}
-      # ── Logging ─────────────────────────────────────────────────────────────
+      # ── CORS Configuration ────────────────────────────────────────────────
+      APP_CORS_ALLOWED_ORIGIN: ${CORS_ALLOWED_ORIGIN:-*}
+      # ── Database & Logging ────────────────────────────────────────────────
+      SPRING_JPA_SHOW_SQL: ${JPA_SHOW_SQL:-false}
+      SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
+      SPRING_DATASOURCE_HIKARI_SSL: ${DB_SSL:-true}
+      SPRING_DATASOURCE_HIKARI_DATA_SOURCE_PROPERTIES_SSL_MODE: ${DB_SSL_MODE:-require}
       LOGGING_LEVEL_COM_OLIVEPRO: ${LOG_LEVEL:-INFO}
-      # ── JVM opts ────────────────────────────────────────────────────────────
+      LOGGING_LEVEL_ROOT: ${LOG_LEVEL_ROOT:-WARN}
+      # ── JVM Tuning ────────────────────────────────────────────────────────
       JAVA_OPTS: ${JAVA_OPTS:--Xms256m -Xmx512m -XX:+UseG1GC}
-    healthcheck:
-      test: ["CMD-SHELL", "curl -f http://localhost:8080/api/auth/me || exit 1"]
-      interval: 30s
-      timeout: 5s
-      retries: 5
-      start_period: 40s
+      # ── Application Settings ─────────────────────────────────────────────
+      APP_FUEL_LOW_STOCK_THRESHOLD: ${FUEL_LOW_STOCK_THRESHOLD:-500}
+      # ── Observability ────────────────────────────────────────────────────
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${OTEL_EXPORTER_OTLP_ENDPOINT:-http://tempo:4318}
     networks:
       - olivepro-net
+    depends_on:
+      - tempo
 
-  # ── Frontend (Vite build → nginx) ─────────────────────────────────────────
+  # ── Frontend (Vite build → nginx) ──────────────────────────────────────────
   frontend:
     build:
       context: ./frontend
@@ -51,36 +52,85 @@ services:
     ports:
       - "80:80"
     environment:
-      # These are read by docker-entrypoint.sh at startup and written to /env.js
+      # ── Backend URLs (injected at runtime by docker-entrypoint.sh) ────────
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://localhost:8080/api}
       VITE_WEBSOCKET_URL: ${VITE_WEBSOCKET_URL:-ws://localhost:8080/ws/alerts}
-    depends_on:
-      backend:
-        condition: service_healthy
     networks:
       - olivepro-net
-  grafana:
-    image: grafana/grafana:latest
-    ports: [ "3000:3000" ]
-
+  # ── Prometheus (metrics collection) ────────────────────────────────────────
   prometheus:
     image: prom/prometheus:latest
-    ports: [ "9090:9090" ]
+    container_name: olivepro-prometheus
+    restart: unless-stopped
+    ports:
+      - "9090:9090"
+    command:
+      - --config.file=/etc/prometheus/prometheus.yml
+      - --storage.tsdb.path=/prometheus
+      - --web.enable-remote-write-receiver
+      - --enable-feature=exemplar-storage
     volumes:
-      - ./prometheus.yml:/etc/prometheus/prometheus.yml
+      - ./prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    networks:
+      - olivepro-net
 
-  loki:
-    image: grafana/loki:latest
-    ports: [ "3100:3100" ]
-
+  # ── Tempo (distributed tracing) ────────────────────────────────────────────
   tempo:
     image: grafana/tempo:latest
-    ports: [ "4318:4318", "3200:3200" ]
-    command: -config.file=/etc/tempo.yml
+    container_name: olivepro-tempo
+    restart: unless-stopped
+    ports:
+      - "3200:3200"   # HTTP API
+      - "4317:4317"   # OTLP gRPC
+      - "4318:4318"   # OTLP HTTP
+    command: [ "-config.file=/etc/tempo.yml" ]
     volumes:
-      - ./tempo.yml:/etc/tempo.yml
+      - ./tempo.yml:/etc/tempo.yml:ro
+      - tempo-data:/home/haytam/Work/projects/olive/tempo
+    networks:
+      - olivepro-net
+
+  # ── Loki (log aggregation) ─────────────────────────────────────────────────
+  loki:
+    image: grafana/loki:latest
+    container_name: olivepro-loki
+    restart: unless-stopped
+    ports:
+      - "3100:3100"
+    networks:
+      - olivepro-net
+
+  # ── Grafana (dashboards & visualization) ───────────────────────────────────
+  grafana:
+    image: grafana/grafana:latest
+    container_name: olivepro-grafana
+    restart: unless-stopped
+    ports:
+      - "3001:3000"
+    environment:
+      GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER:-admin}
+      GF_SECURITY_ADMIN_PASSWORD: ${GRAFANA_ADMIN_PASSWORD:-admin}
+      GF_FEATURE_TOGGLES_ENABLE: traceqlEditor
+      GF_INSTALL_PLUGINS: grafana-piechart-panel
+      # Allow provisioned datasources to overwrite
+      GF_DATASOURCES_DEFAULT_DATA_SOURCE_MODE: file
+    volumes:
+      - grafana-data:/var/lib/grafana
+      - ./grafana/provisioning/datasources:/etc/grafana/provisioning/datasources:ro
+    depends_on:
+      - prometheus
+      - tempo
+      - loki
+    networks:
+      - olivepro-net
 
 networks:
   olivepro-net:
     driver: bridge
+
+volumes:
+  prometheus-data:
+  tempo-data:
+  grafana-data:
 
