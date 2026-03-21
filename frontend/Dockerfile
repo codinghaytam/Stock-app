@@ -8,7 +8,7 @@ RUN npm run build
 
 # Production stage
 FROM nginx:1.25-alpine
-LABEL org.opencontainers.image.description="OlivePro frontend (Vite + React)"
+LABEL org.opencontainers.image.description="OlivePro frontend"
 
 # Remove default nginx content
 RUN rm -rf /usr/share/nginx/html/*
