@@ -3,11 +3,11 @@ pipeline {
 
     environment {
         DOCKERHUB_CREDENTIALS = credentials('DOCKERHUB_CREDENTIALS')
-        BACKEND_IMAGE         = 'yourdockerhubuser/stock-backend'
-        FRONTEND_IMAGE        = 'yourdockerhubuser/stock-frontend'
+        BACKEND_IMAGE         = 'haytam265684/backend-olive'
+        FRONTEND_IMAGE        = 'haytam265684/frontend-olive'
         IMAGE_TAG             = "${BUILD_NUMBER}"
         VM_USER               = 'user'
-        VM_HOST               = 'your-oracle-vm-ip'
+        VM_HOST               = credentials('ORACLE_VM_HOST')
         VM_APP_DIR            = '/opt/stock-app'
     }
 
