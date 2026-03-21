@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Navigate, Route, Routes, useLocation, useNavigate } from 'react-router-dom';
 import Sidebar from '@/components/Sidebar.tsx';
 import Dashboard from '@/components/Dashboard.tsx';
 import StockManager from '@/components/StockManager.tsx';
@@ -14,13 +15,13 @@ import SellersTracker from '@/components/SellersTracker.tsx';
 import ActivityHistory from '@/components/ActivityHistory.tsx';
 import FuelManager from '@/components/FuelManager.tsx';
 import AdminPanel from '@/components/AdminPanel.tsx';
-import EmailManager from '@/components/EmailManager.tsx'; // New Component
+import EmailManager from '@/components/EmailManager.tsx';
 import InvoiceManager from '@/components/InvoiceManager.tsx';
 import ContractManager from '@/components/ContractManager.tsx';
-import { Transaction, Tank, StockItem, ProductType, Brand, TransactionType, Vehicle, PaymentMethod, PaymentStatus, Check, Expense, Employee, AttendanceRecord, BankAccount, Currency, LogEntry, FuelLog, SalaryPayment, EmailAccount, EmailMessage } from './types.ts';
+import { Transaction, Tank, StockItem, ProductType, TransactionType, Vehicle, PaymentMethod, PaymentStatus, Check, Expense, Employee, AttendanceRecord, BankAccount, Currency, LogEntry, FuelLog, SalaryPayment, EmailAccount, EmailMessage } from './types.ts';
 import { Plus } from 'lucide-react';
 import { websocketService } from './services/websocketService.ts';
-import { BackendUnavailableError } from './services/apiClient.ts';
+import { BackendUnavailableError, api, loadAuthSession, clearAuthSession } from './services/apiClient.ts';
 import BackendError from './components/BackendError.tsx';
 
 // Persist Helper
@@ -47,16 +48,17 @@ const useLocalStorage = <T,>(key: string, initialValue: T): [T, React.Dispatch<R
 };
 
 export default function App() {
+  const location = useLocation();
+  const navigate = useNavigate();
   const [backendDown, setBackendDown] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'seller'>('admin');
   const [currentUsername, setCurrentUsername] = useState<string>('');
   const [activeTab, setActiveTab] = useState('dashboard');
   const [showTransactionForm, setShowTransactionForm] = useState(false);
-  
-  // Specific for Seller Mode
   const [sellerVehicleId, setSellerVehicleId] = useState<string>('');
-  
+  const [authReady, setAuthReady] = useState(false);
+
   // STATE WITH LOCAL STORAGE PERSISTENCE
   const [transactions, setTransactions] = useLocalStorage<Transaction[]>('transactions', []);
   const [tanks, setTanks] = useLocalStorage<Tank[]>('tanks', []);
@@ -68,18 +70,10 @@ export default function App() {
   const [attendance, setAttendance] = useLocalStorage<AttendanceRecord[]>('attendance', []);
   const [salaryPayments, setSalaryPayments] = useLocalStorage<SalaryPayment[]>('salary_payments', []);
   const [bankAccounts, setBankAccounts] = useLocalStorage<BankAccount[]>('bankAccounts', []);
-  
-  // NEW: Blocked Users State
   const [blockedUsers, setBlockedUsers] = useLocalStorage<string[]>('blocked_users', []);
-
-  // NEW: Fuel Management State
-  const [fuelStock, setFuelStock] = useLocalStorage<number>('fuel_stock', 0); // Liters
+  const [fuelStock, setFuelStock] = useLocalStorage<number>('fuel_stock', 0);
   const [fuelLogs, setFuelLogs] = useLocalStorage<FuelLog[]>('fuel_logs', []);
-  
-  // Activity Logs
   const [activityLogs, setActivityLogs] = useLocalStorage<LogEntry[]>('activity_logs', []);
-
-  // --- EMAIL SYSTEM STATE ---
   const [emailAccounts, setEmailAccounts] = useLocalStorage<EmailAccount[]>('email_accounts', [
       { id: '1', email: 'direction@marrakech-agro.com', name: 'Direction Générale', color: 'bg-indigo-500' },
       { id: '2', email: 'commercial@marrakech-agro.com', name: 'Service Commercial', color: 'bg-green-500' },
@@ -89,16 +83,10 @@ export default function App() {
   const [emails, setEmails] = useLocalStorage<EmailMessage[]>('emails', [
       { id: 'm1', accountId: '1', folder: 'inbox', from: 'system@app.com', to: 'direction@marrakech-agro.com', subject: 'Bienvenue sur Olive Manager', body: 'Le système est opérationnel.', date: new Date().toISOString(), read: false }
   ]);
-
-  // Alerts override coming from WebSocket (counts). When present, these values are used by the Sidebar instead of computed counts.
   const [alertsOverride, setAlertsOverride] = useState<{ emails: number; accounting: number; fuel: number; stock: number } | null>(null);
 
-  // CALCULATE GLOBAL ALERTS (Moved here to avoid Conditional Hook Call Error)
   const systemAlerts = useMemo(() => {
-      // 1. Unread Emails
       const unreadEmails = emails.filter(e => !e.read && e.folder === 'inbox').length;
-      
-      // 2. Urgent Checks (Due within 3 days or Overdue)
       const urgentChecks = checks.filter(c => {
           if (c.status !== 'En Coffre') return false;
           const due = new Date(c.dueDate).getTime();
@@ -106,23 +94,13 @@ export default function App() {
           const diffDays = (due - now) / (1000 * 3600 * 24);
           return diffDays <= 3; 
       }).length;
-
-      // 3. Low Fuel (< 500L)
       const lowFuel = fuelStock < 500 ? 1 : 0;
-
-      // 4. Low Tanks (< 15% Capacity)
       const lowTanks = tanks.filter(t => t.currentLevel < (t.capacity * 0.15)).length;
-
-      return {
-          emails: unreadEmails,
-          accounting: urgentChecks,
-          fuel: lowFuel,
-          stock: lowTanks
-      };
+      return { emails: unreadEmails, accounting: urgentChecks, fuel: lowFuel, stock: lowTanks };
   }, [emails, checks, fuelStock, tanks]);
 
-  // Merge computed alerts with any override from the WebSocket (override takes precedence)
   const displayedAlerts = alertsOverride ? alertsOverride : systemAlerts;
+  const currentTabFromPath = location.pathname.replace('/', '') || 'dashboard';
 
   // --- AUTO LOGIN CHECK ---
   useEffect(() => {
@@ -148,6 +126,59 @@ export default function App() {
       }
     }
   }, []);
+
+  // WEBSOCKET & BACKEND CHECK
+  useEffect(() => {
+    (async () => {
+      const session = loadAuthSession();
+      if (!session?.token) {
+        setAuthReady(true);
+        return;
+      }
+      try {
+        const res = await api.get('/auth/me');
+        const me = res.data;
+        if (me?.username) {
+          setIsAuthenticated(true);
+          setUserRole(me.role === 'SUPER_ADMIN' || me.role === 'ADMIN' ? 'admin' : 'seller');
+          setCurrentUsername(me.username);
+          if (session.vehicleId) setSellerVehicleId(session.vehicleId);
+          if (session.role === 'seller') navigate('/seller', { replace: true });
+          else navigate('/dashboard', { replace: true });
+          websocketService.connect(session.token, 5);
+          websocketService.onAlerts((payload) => {
+            setAlertsOverride({
+              emails: payload.unreadEmails,
+              accounting: payload.urgentChecks,
+              fuel: payload.lowFuel,
+              stock: payload.lowTankCount
+            });
+          });
+          websocketService.onMaxRetries(() => console.warn('WebSocket reached max retries'));
+        } else {
+          clearAuthSession();
+        }
+      } catch (e: any) {
+        if (e?.response?.status === 401 || e?.response?.status === 403) clearAuthSession();
+        else {
+          console.error('Backend not reachable at startup', e);
+          setBackendDown(true);
+        }
+      } finally {
+        setAuthReady(true);
+      }
+    })();
+  }, [navigate]);
+
+  useEffect(() => {
+    if (!isAuthenticated || !currentUsername) return;
+    const token = window.localStorage.getItem('olivemanager_token');
+    if (!token) return;
+    websocketService.connect(token, 5);
+  }, [isAuthenticated, currentUsername]);
+
+  if (backendDown) return <BackendError />;
+  if (!authReady) return <div className="min-h-screen flex items-center justify-center">Chargement…</div>;
 
   // HELPER: Log Action
   const addLog = (user: string, action: string, details: string, amount?: number) => {
@@ -192,11 +223,14 @@ export default function App() {
       }
   };
 
-  const handleLogout = () => {
+  const handleLogout = async () => {
       setIsAuthenticated(false);
       setSellerVehicleId('');
       setCurrentUsername('');
-      window.localStorage.removeItem('auth_session');
+      setAlertsOverride(null);
+      clearAuthSession();
+      try { await api.post('/auth/logout'); } catch { /* client-side logout still succeeds */ }
+      navigate('/login', { replace: true });
   };
 
   // GENERIC DELETION HANDLERS (Moved up for SellerDashboard access)
@@ -954,160 +988,25 @@ export default function App() {
       
       <main className="flex-1 ml-64 p-8">
         <div className="max-w-7xl mx-auto">
-          {activeTab === 'dashboard' && <Dashboard transactions={transactions} tanks={tanks} expenses={expenses} username={currentUsername} />}
-          {activeTab === 'accounting' && (
-            <Accounting 
-              transactions={transactions} 
-              expenses={expenses} 
-              checks={checks}
-              bankAccounts={bankAccounts} 
-              onAddExpense={handleAddExpense} 
-              onDeleteTransaction={handleDeleteTransaction}
-              onDeleteExpense={handleDeleteExpense}
-              onAddManualCash={handleAddManualCash}
-              onAddCheck={handleAddCheck}
-              onDeleteCheck={handleDeleteCheck}
-              onAddBankAccount={handleAddBankAccount}
-              onUpdateBankAccount={handleUpdateBankAccount} // Passed Here
-              username={currentUsername}
-            />
-          )}
-          {activeTab === 'invoices' && (
-            <InvoiceManager />
-          )}
-          {activeTab === 'contracts' && (
-            <ContractManager 
-              tanks={tanks}
-              onUpdateTank={(tankId, qty) => {
-                setTanks(prev => prev.map(t => {
-                  if (t.id === tankId) {
-                    const newLevel = Math.max(0, t.currentLevel + qty);
-                    let newStatus = t.status;
-                    let newAcidity = t.acidity;
-                    let newWaxes = t.waxes;
-                    let newAvgCost = t.avgCost;
-
-                    if (newLevel === 0) {
-                        newStatus = 'Empty';
-                        newAcidity = 0;
-                        newWaxes = 0;
-                        newAvgCost = 0;
-                    }
-                    else if (newLevel >= t.capacity) newStatus = 'Full';
-                    else newStatus = 'Filling';
-
-                    return { 
-                        ...t, 
-                        currentLevel: newLevel, 
-                        status: newStatus as any,
-                        acidity: newAcidity,
-                        waxes: newWaxes,
-                        avgCost: newAvgCost
-                    };
-                  }
-                  return t;
-                }));
-                addLog(currentUsername, 'Allocation Contrat', `Mise à jour citerne: ${qty}L`);
-              }}
-              username={currentUsername}
-            />
-          )}
-          {activeTab === 'stock' && (
-            <StockManager 
-                tanks={tanks} 
-                stockItems={stock} 
-                onAddTank={handleAddTank} 
-                onAddStock={handleAddStock}
-                onTransferOil={handleTransferOil}
-                onDeleteTank={handleDeleteTank}
-                onDeleteStock={handleDeleteStock}
-                username={currentUsername}
-            />
-          )}
-          {activeTab === 'vehicles' && (
-            <VehicleManager 
-              vehicles={vehicles} 
-              factoryStock={stock}
-              onAddVehicle={handleAddVehicle} 
-              onUpdateMission={handleUpdateVehicleMission}
-              onLoadVehicle={handleLoadVehicle}
-              onMobileSale={handleMobileSale}
-              onDeleteVehicle={handleDeleteVehicle}
-              username={currentUsername}
-            />
-          )}
-          
-          {/* FUEL TAB */}
-          {activeTab === 'fuel' && (
-              <FuelManager 
-                currentStock={fuelStock}
-                logs={fuelLogs}
-                vehicles={vehicles}
-                onAddFuel={handleAddFuel}
-                onConsumeFuel={handleConsumeFuel}
-                username={currentUsername}
-                onDeleteLog={handleDeleteFuelLog}
-              />
-          )}
-
-          {/* NEW TAB: SELLERS TRACKING */}
-          {activeTab === 'sellers' && (
-             <SellersTracker 
-                vehicles={vehicles} 
-                transactions={transactions} 
-             />
-          )}
-
-          {activeTab === 'production' && <ProductionManager stockItems={stock} tanks={tanks} onProduction={handleProduction} />}
-          {activeTab === 'partners' && (
-            <TransactionManager 
-              transactions={transactions} 
-              tanks={tanks} 
-              vehicles={vehicles}
-              onDeleteTransaction={handleDeleteTransaction}
-              username={currentUsername}
-            />
-          )}
-          {activeTab === 'hr' && (
-            <Timekeeping 
-              employees={employees}
-              attendance={attendance}
-              salaryPayments={salaryPayments}
-              bankAccounts={bankAccounts}
-              onAddEmployee={handleAddEmployee}
-              onDeleteEmployee={handleDeleteEmployee}
-              onUpdateAttendance={handleUpdateAttendance}
-              onAddExpense={handleAddExpense}
-              onPaySalary={handlePaySalary}
-              onDeletePayment={handleDeleteSalaryPayment}
-            />
-          )}
-          
-          {/* NEW TAB: HISTORY */}
-          {activeTab === 'history' && (
-             <ActivityHistory logs={activityLogs} />
-          )}
-
-          {/* NEW TAB: EMAILS */}
-          {activeTab === 'emails' && (
-              <EmailManager 
-                accounts={emailAccounts}
-                emails={emails}
-                onSendEmail={handleSendEmail}
-                onUpdateEmail={handleUpdateEmail}
-                onDeleteEmail={handleDeleteEmail}
-                onAddAccount={handleAddEmailAccount}
-              />
-          )}
-
-          {/* NEW TAB: ADMIN PANEL (Only for Super Admins) */}
-          {activeTab === 'admin' && (currentUsername === 'mojo' || currentUsername === 'boss') && (
-              <AdminPanel 
-                vehicles={vehicles}
-                blockedUsers={blockedUsers}
-                onToggleBlock={handleToggleBlockUser}
-              />
-          )}
+          <Routes>
+            <Route path="/" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/login" element={<Navigate to="/dashboard" replace />} />
+            <Route path="/dashboard" element={<Dashboard transactions={transactions} tanks={tanks} expenses={expenses} username={currentUsername} />} />
+            <Route path="/accounting" element={<Accounting transactions={transactions} expenses={expenses} checks={checks} bankAccounts={bankAccounts} onAddExpense={handleAddExpense} onDeleteTransaction={handleDeleteTransaction} onDeleteExpense={handleDeleteExpense} onAddManualCash={handleAddManualCash} onAddCheck={handleAddCheck} onDeleteCheck={handleDeleteCheck} onAddBankAccount={handleAddBankAccount} onUpdateBankAccount={handleUpdateBankAccount} username={currentUsername} />} />
+            <Route path="/invoices" element={<InvoiceManager />} />
+            <Route path="/contracts" element={<ContractManager tanks={tanks} onUpdateTank={() => {}} username={currentUsername} />} />
+            <Route path="/stock" element={<StockManager tanks={tanks} stockItems={stock} onAddTank={handleAddTank} onAddStock={handleAddStock} onTransferOil={handleTransferOil} onDeleteTank={handleDeleteTank} onDeleteStock={handleDeleteStock} username={currentUsername} />} />
+            <Route path="/vehicles" element={<VehicleManager vehicles={vehicles} factoryStock={stock} onAddVehicle={handleAddVehicle} onUpdateMission={handleUpdateVehicleMission} onLoadVehicle={handleLoadVehicle} onMobileSale={handleMobileSale} onDeleteVehicle={handleDeleteVehicle} username={currentUsername} />} />
+            <Route path="/fuel" element={<FuelManager currentStock={fuelStock} logs={fuelLogs} vehicles={vehicles} onAddFuel={handleAddFuel} onConsumeFuel={handleConsumeFuel} username={currentUsername} onDeleteLog={handleDeleteFuelLog} />} />
+            <Route path="/sellers" element={<SellersTracker vehicles={vehicles} transactions={transactions} />} />
+            <Route path="/production" element={<ProductionManager stockItems={stock} tanks={tanks} onProduction={handleProduction} />} />
+            <Route path="/partners" element={<TransactionManager transactions={transactions} tanks={tanks} vehicles={vehicles} onDeleteTransaction={handleDeleteTransaction} username={currentUsername} />} />
+            <Route path="/hr" element={<Timekeeping employees={employees} attendance={attendance} salaryPayments={salaryPayments} bankAccounts={bankAccounts} onAddEmployee={handleAddEmployee} onDeleteEmployee={handleDeleteEmployee} onUpdateAttendance={handleUpdateAttendance} onAddExpense={handleAddExpense} onPaySalary={handlePaySalary} onDeletePayment={handleDeleteSalaryPayment} />} />
+            <Route path="/history" element={<ActivityHistory logs={activityLogs} />} />
+            <Route path="/emails" element={<EmailManager accounts={emailAccounts} emails={emails} onSendEmail={handleSendEmail} onUpdateEmail={handleUpdateEmail} onDeleteEmail={handleDeleteEmail} onAddAccount={handleAddEmailAccount} />} />
+            <Route path="/admin" element={(currentUsername === 'mojo' || currentUsername === 'boss') ? <AdminPanel vehicles={vehicles} blockedUsers={blockedUsers} onToggleBlock={handleToggleBlockUser} /> : <Navigate to="/dashboard" replace />} />
+            <Route path="*" element={<Navigate to="/dashboard" replace />} />
+          </Routes>
         </div>
       </main>
 

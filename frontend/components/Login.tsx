@@ -1,76 +1,58 @@
 import React, { useState } from 'react';
+import { useNavigate } from 'react-router-dom';
 import { Lock, User, Droplets, Truck, CheckSquare, Square } from 'lucide-react';
-import { Vehicle } from '../types.ts';
+import { api, saveAuthSession, type AuthRole } from '../services/apiClient.ts';
 
 interface LoginProps {
   onLogin: (role: 'admin' | 'seller', username: string, remember: boolean) => void;
-  vehicles: Vehicle[];
   blockedUsers?: string[]; // Optional prop for backward compatibility but used now
 }
 
-const Login: React.FC<LoginProps> = ({ onLogin, vehicles, blockedUsers = [] }) => {
+const Login: React.FC<LoginProps> = ({ onLogin, blockedUsers = [] }) => {
+  const navigate = useNavigate();
   const [id, setId] = useState('');
   const [password, setPassword] = useState('');
   const [rememberMe, setRememberMe] = useState(false);
   const [error, setError] = useState('');
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError('');
-    
+
     const rawInput = id.trim();
     const lowerInput = rawInput.toLowerCase();
     const upperInput = rawInput.toUpperCase();
 
-    // Check if user is blocked globally first (Check various case formats)
     if (blockedUsers.some(u => u === rawInput || u.toLowerCase() === lowerInput || u.toUpperCase() === upperInput)) {
+      setError("Ce compte a été bloqué par l'administrateur.");
+      return;
+    }
+
+    try {
+      const { data } = await api.post('/auth/login', { username: rawInput, password });
+      const role: AuthRole = data.role === 'SELLER' ? 'seller' : 'admin';
+      const normalizedSession = {
+        token: data.token,
+        username: data.username ?? rawInput,
+        role,
+        vehicleId: data.vehicleId ?? null,
+      };
+
+      saveAuthSession(normalizedSession);
+      onLogin(role, normalizedSession.username, rememberMe);
+      navigate(role === 'seller' ? '/seller' : '/dashboard', { replace: true });
+      return;
+    } catch (err: any) {
+      const status = err?.response?.status;
+      if (status === 403) {
         setError("Ce compte a été bloqué par l'administrateur.");
-        return;
-    }
-
-    // 1. Super Admins (Full Access) - Mojo & Boss
-    // Normalize to lowercase for username consistency
-    if ((lowerInput === 'mojo' || lowerInput === 'boss') && password === 'hamoda2004') {
-      onLogin('admin', lowerInput, rememberMe);
-      return;
-    } 
-    // 2. Restricted Admins (No Financials)
-    else if (lowerInput === 'hajar' && password === 'hajar2004') {
-      onLogin('admin', 'hajar', rememberMe);
+      } else if (status === 401) {
+        setError('Identifiant ou mot de passe incorrect.');
+      } else {
+        setError('Impossible de contacter le serveur d’authentification.');
+      }
       return;
     }
-    else if (lowerInput === 'safae' && password === 'zitlblad2004') {
-      onLogin('admin', 'safae', rememberMe);
-      return;
-    }
-    
-    // 3. Seller Access (Par Matricule)
-    // On vérifie si l'ID entré correspond à un matricule existant (Case Insensitive)
-    const foundVehicle = vehicles.find(v => v.plateNumber.toUpperCase() === upperInput);
-
-    if (foundVehicle) {
-        // Also check if the plate itself is in the blocked list
-        if (blockedUsers.includes(foundVehicle.plateNumber)) {
-             setError("Ce véhicule/compte a été bloqué par l'administrateur.");
-             return;
-        }
-
-        if (password === 'ZITLBLAD2004') {
-            onLogin('seller', foundVehicle.plateNumber, rememberMe); // Le username devient le matricule exact
-            return;
-        } else {
-            setError('Mot de passe incorrect pour ce véhicule.');
-            return;
-        }
-    }
-
-    // 4. Fallback (Ancien accès générique - optionnel, gardé si besoin de debug)
-    if (upperInput === 'ZITLBLAD1' && password === 'ZITLBLAD2004') {
-        onLogin('seller', 'ZITLBLAD1', rememberMe);
-        return;
-    } 
-
-    setError('Identifiant inconnu ou mot de passe incorrect.');
   };
 
   return (
@@ -100,7 +82,7 @@ const Login: React.FC<LoginProps> = ({ onLogin, vehicles, blockedUsers = [] }) =
                 value={id}
                 onChange={e => setId(e.target.value)}
                 className="w-full pl-10 pr-4 py-3 border border-gray-300 rounded-xl focus:ring-2 focus:ring-olive-500 outline-none transition-all placeholder-gray-300 uppercase"
-                placeholder="Admin ou Matricule (ex: 12345-A-1)"
+                placeholder="Admin ou Matricule"
                 autoComplete="username"
               />
             </div>

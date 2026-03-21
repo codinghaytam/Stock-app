@@ -1,5 +1,6 @@
 import React from 'react';
-import { LayoutDashboard, Factory, Database, Users, Droplets, Truck, Wallet, Clock, ClipboardList, BarChart2, Fuel, ShieldAlert, Mail, FileText, FileSignature } from 'lucide-react';
+import { useLocation, useNavigate } from 'react-router-dom';
+import { LayoutDashboard, Factory, Database, Users, Droplets, Truck, Wallet, Clock, ClipboardList, BarChart2, Fuel, ShieldAlert, FileText, FileSignature } from 'lucide-react';
 
 interface SidebarProps {
   activeTab: string;
@@ -9,19 +10,21 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, username, alerts = {} }) => {
+  const navigate = useNavigate();
+  const location = useLocation();
   const menuItems = [
-    { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard },
-    { id: 'accounting', label: 'Comptabilité', icon: Wallet },
-    { id: 'invoices', label: 'Factures', icon: FileText },
-    { id: 'contracts', label: 'Suivi Contrats', icon: FileSignature },
-    { id: 'fuel', label: 'Gestion Carburant', icon: Fuel }, 
-    { id: 'sellers', label: 'Suivi Vendeurs', icon: BarChart2 },
-    { id: 'stock', label: 'Stocks & Citernes', icon: Database },
-    { id: 'production', label: 'Production', icon: Factory },
-    { id: 'vehicles', label: 'Flotte & Transport', icon: Truck },
-    { id: 'partners', label: 'Clients / Fournisseurs', icon: Users },
-    { id: 'hr', label: 'Pointage & RH', icon: Clock },
-    { id: 'history', label: 'Historique Activités', icon: ClipboardList },
+    { id: 'dashboard', label: 'Tableau de Bord', icon: LayoutDashboard, path: '/dashboard' },
+    { id: 'accounting', label: 'Comptabilité', icon: Wallet, path: '/accounting' },
+    { id: 'invoices', label: 'Factures', icon: FileText, path: '/invoices' },
+    { id: 'contracts', label: 'Suivi Contrats', icon: FileSignature, path: '/contracts' },
+    { id: 'fuel', label: 'Gestion Carburant', icon: Fuel, path: '/fuel' },
+    { id: 'sellers', label: 'Suivi Vendeurs', icon: BarChart2, path: '/sellers' },
+    { id: 'stock', label: 'Stocks & Citernes', icon: Database, path: '/stock' },
+    { id: 'production', label: 'Production', icon: Factory, path: '/production' },
+    { id: 'vehicles', label: 'Flotte & Transport', icon: Truck, path: '/vehicles' },
+    { id: 'partners', label: 'Clients / Fournisseurs', icon: Users, path: '/partners' },
+    { id: 'hr', label: 'Pointage & RH', icon: Clock, path: '/hr' },
+    { id: 'history', label: 'Historique Activités', icon: ClipboardList, path: '/history' },
   ];
 
   return (
@@ -39,13 +42,16 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, username, al
       <nav className="flex-1 p-4 space-y-2 overflow-y-auto">
         {menuItems.map((item) => {
           const Icon = item.icon;
-          const isActive = activeTab === item.id;
+          const isActive = location.pathname === item.path || activeTab === item.id;
           const alertCount = alerts[item.id] || 0;
 
           return (
             <button
               key={item.id}
-              onClick={() => setActiveTab(item.id)}
+              onClick={() => {
+                setActiveTab(item.id);
+                navigate(item.path);
+              }}
               className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 relative ${
                 isActive 
                   ? 'bg-olive-500 text-white shadow-lg shadow-olive-900/50' 
@@ -72,9 +78,12 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, setActiveTab, username, al
             <div className="pt-4 mt-4 border-t border-olive-800">
                 <p className="text-xs text-olive-400 font-bold px-4 mb-2 uppercase">Super Admin</p>
                 <button
-                onClick={() => setActiveTab('admin')}
+                onClick={() => {
+                  setActiveTab('admin');
+                  navigate('/admin');
+                }}
                 className={`w-full flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    activeTab === 'admin' 
+                    location.pathname === '/admin' || activeTab === 'admin'
                     ? 'bg-red-800 text-white shadow-lg' 
                     : 'text-olive-100 hover:bg-red-900/50 hover:text-white'
                 }`}
