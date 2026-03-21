@@ -5,7 +5,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS = credentials('DOCKERHUB_CREDENTIALS')
         BACKEND_IMAGE         = 'haytam265684/backend-olive'
         FRONTEND_IMAGE        = 'haytam265684/frontend-olive'
-        IMAGE_TAG             = "${BUILD_NUMBER}"
+        IMAGE_TAG             = "0.${BUILD_NUMBER}.0"
         VM_USER               = 'user'
         VM_HOST               = credentials('ORACLE_VM_HOST')
         VM_APP_DIR            = '/opt/stock-app'
