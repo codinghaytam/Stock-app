@@ -4,7 +4,7 @@ services:
 
   # ── Backend (Spring Boot) ──────────────────────────────────────────────────
   backend:
-    image: haytam265684/backend-olive:0.5.0
+    image: haytam265684/backend-olive:latest
     container_name: olivepro-backend
     restart: unless-stopped
     env_file:
@@ -42,7 +42,7 @@ services:
 
   # ── Frontend (Vite → nginx) ────────────────────────────────────────────────
   frontend:
-    image: haytam265684/frontend-olive:0.5.0
+    image: haytam265684/frontend-olive:latest
     container_name: olivepro-frontend
     restart: unless-stopped
     ports:
