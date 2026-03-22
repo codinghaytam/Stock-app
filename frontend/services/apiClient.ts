@@ -1,4 +1,5 @@
 import axios from 'axios';
+import { config } from './config';
 
 class BackendUnavailableError extends Error {
   constructor(message: string) {
@@ -7,7 +8,8 @@ class BackendUnavailableError extends Error {
   }
 }
 
-const VITE_API_BASE_URL = (import.meta as any).env?.VITE_API_BASE_URL || 'http://localhost:8080/api';
+// Use config which loads from window._env_ (runtime) first, then falls back to build-time env
+const VITE_API_BASE_URL = config.apiBaseUrl;
 const TOKEN_KEY = 'olivemanager_token';
 const SESSION_KEY = 'auth_session';
 

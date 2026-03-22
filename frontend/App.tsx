@@ -41,6 +41,7 @@ import {
 import { Plus } from 'lucide-react';
 import { websocketService } from './services/websocketService.ts';
 import { api, clearAuthSession, loadAuthSession } from './services/apiClient.ts';
+import { config } from './services/config.ts';
 import BackendError from './components/BackendError.tsx';
 
 const useLocalStorage = <T,>(key: string, initialValue: T): [T, React.Dispatch<React.SetStateAction<T>>] => {
@@ -90,12 +91,7 @@ export default function App() {
   const [fuelStock, setFuelStock] = useLocalStorage('fuel_stock', 0);
   const [fuelLogs, setFuelLogs] = useLocalStorage<FuelLog[]>('fuel_logs', []);
   const [activityLogs, setActivityLogs] = useLocalStorage<LogEntry[]>('activity_logs', []);
-  const [emailAccounts, setEmailAccounts] = useLocalStorage<EmailAccount[]>('email_accounts', [
-    { id: '1', email: 'direction@marrakech-agro.com', name: 'Direction Générale', color: 'bg-indigo-500' },
-    { id: '2', email: 'commercial@marrakech-agro.com', name: 'Service Commercial', color: 'bg-green-500' },
-    { id: '3', email: 'rh@marrakech-agro.com', name: 'Ressources Humaines', color: 'bg-pink-500' },
-    { id: '4', email: 'logistique@marrakech-agro.com', name: 'Logistique & Transport', color: 'bg-orange-500' }
-  ]);
+  const [emailAccounts, setEmailAccounts] = useLocalStorage<EmailAccount[]>('email_accounts', config.getDefaultEmailAccounts());
   const [emails, setEmails] = useLocalStorage<EmailMessage[]>('emails', [
     {
       id: 'm1',
@@ -120,8 +116,8 @@ export default function App() {
       const diffDays = (due - now) / (1000 * 3600 * 24);
       return diffDays <= 3;
     }).length;
-    const lowFuel = fuelStock < 500 ? 1 : 0;
-    const lowTanks = tanks.filter(t => t.currentLevel < (t.capacity * 0.15)).length;
+    const lowFuel = fuelStock < config.fuelLowStockThreshold ? 1 : 0;
+    const lowTanks = tanks.filter(t => t.currentLevel < (t.capacity * (config.tankLowLevelThresholdPercent / 100))).length;
     return { emails: unreadEmails, accounting: urgentChecks, fuel: lowFuel, stock: lowTanks };
   }, [emails, checks, fuelStock, tanks]);
 
@@ -883,7 +879,7 @@ export default function App() {
             <Route path="/hr" element={<Timekeeping employees={employees} attendance={attendance} salaryPayments={salaryPayments} bankAccounts={bankAccounts} onAddEmployee={handleAddEmployee} onDeleteEmployee={handleDeleteEmployee} onUpdateAttendance={handleUpdateAttendance} onAddExpense={handleAddExpense} onPaySalary={handlePaySalary} onDeletePayment={handleDeleteSalaryPayment} />} />
             <Route path="/history" element={<ActivityHistory logs={activityLogs} />} />
             <Route path="/emails" element={<EmailManager accounts={emailAccounts} emails={emails} onSendEmail={handleSendEmail} onUpdateEmail={handleUpdateEmail} onDeleteEmail={handleDeleteEmail} onAddAccount={handleAddEmailAccount} />} />
-            <Route path="/admin" element={(currentUsername === 'mojo' || currentUsername === 'boss') ? <AdminPanel vehicles={vehicles} blockedUsers={blockedUsers} onToggleBlock={handleToggleBlockUser} /> : <Navigate to="/dashboard" replace />} />
+            <Route path="/admin" element={config.isAdmin(currentUsername) ? <AdminPanel vehicles={vehicles} blockedUsers={blockedUsers} onToggleBlock={handleToggleBlockUser} /> : <Navigate to="/dashboard" replace />} />
             <Route path="*" element={<Navigate to="/dashboard" replace />} />
           </Routes>
         </div>
