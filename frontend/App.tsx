@@ -17,6 +17,7 @@ import AdminPanel from '@/components/AdminPanel.tsx';
 import EmailManager from '@/components/EmailManager.tsx';
 import InvoiceManager from '@/components/InvoiceManager.tsx';
 import ContractManager from '@/components/ContractManager.tsx';
+import Login from '@/components/Login.tsx';
 import {
   AttendanceRecord,
   BankAccount,
@@ -846,11 +847,42 @@ export default function App() {
   if (backendDown) return <BackendError />;
   if (!authReady) return <div className="min-h-screen flex items-center justify-center">Chargement…</div>;
 
-  if (userRole === 'seller') {
-    return sellerContent;
+  // ==================== AUTHENTICATION FIRST ====================
+  // If NOT authenticated, show Login page regardless of URL
+  if (!isAuthenticated) {
+    return (
+      <div>
+        <Routes>
+          <Route path="/login" element={<Login onLogin={(role, username) => {
+            setIsAuthenticated(true);
+            setUserRole(role);
+            setCurrentUsername(username);
+            if (role === 'seller') navigate('/seller', { replace: true });
+            else navigate('/dashboard', { replace: true });
+          }} blockedUsers={blockedUsers} />} />
+          {/* Redirect ALL other routes to login if not authenticated */}
+          <Route path="*" element={<Navigate to="/login" replace />} />
+        </Routes>
+      </div>
+    );
   }
 
-  // Admin content — always render the tree to keep hook order stable
+  // ==================== AUTHENTICATED: Route by Role ====================
+  // SELLER ROLE
+  if (userRole === 'seller') {
+    return sellerContent ?? (
+      <div className="min-h-screen bg-gray-100 flex items-center justify-center p-4">
+        <div className="bg-white p-6 rounded-xl shadow-lg text-center">
+          <p className="text-gray-600 mb-4">Chargement du profil vendeur...</p>
+          <button onClick={() => navigate('/seller', { replace: true })} className="text-olive-600 hover:underline">
+            Réessayer
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  // ADMIN ROLE - render admin dashboard
   return (
     <div className="min-h-screen bg-gray-50 flex font-sans">
       <Sidebar
