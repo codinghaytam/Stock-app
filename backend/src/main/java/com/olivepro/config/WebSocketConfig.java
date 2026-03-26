@@ -14,7 +14,9 @@ public class WebSocketConfig implements WebSocketConfigurer {
     @Value("${app.cors.allowed-origin:http://localhost:5173}")
     private String allowedOrigin;
 
-    public WebSocketConfig(AlertsWebSocketHandler handler) { this.handler = handler; }
+    public WebSocketConfig(AlertsWebSocketHandler handler) {
+        this.handler = handler;
+    }
 
     @Override
     public void registerWebSocketHandlers(WebSocketHandlerRegistry registry) {
