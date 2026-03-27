@@ -19,7 +19,6 @@ const getRuntimeEnv = (key: string, defaultValue: string = ''): string => {
 export const config = {
   // API Configuration - loads from window._env_ first (runtime), then build-time
   apiBaseUrl: getRuntimeEnv('VITE_API_BASE_URL', 'http://localhost:8080/api'),
-  wsUrl: getRuntimeEnv('VITE_WS_URL', 'ws://localhost:8080/ws/alerts'),
 
   // Admin Panel Permissions
   adminUsers: ((import.meta as any).env?.VITE_ADMIN_USERS as string || 'mojo,boss').split(',').map(u => u.trim()),
