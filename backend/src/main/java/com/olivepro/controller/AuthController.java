@@ -9,6 +9,9 @@ import org.springframework.security.core.annotation.AuthenticationPrincipal;
 import org.springframework.security.core.userdetails.UserDetails;
 import org.springframework.web.bind.annotation.*;
 
+import java.util.HashMap;
+import java.util.Map;
+
 @RestController
 @RequestMapping("/api/auth")
 public class AuthController {
@@ -36,6 +39,19 @@ public class AuthController {
     public ResponseEntity<Void> logout() {
         authService.logout();
         return ResponseEntity.ok().build();
+    }
+
+    @GetMapping("/alerts")
+    public ResponseEntity<Map<String, Object>> getAlerts(@AuthenticationPrincipal UserDetails userDetails) {
+        if (userDetails == null) {
+            return ResponseEntity.status(401).build();
+        }
+        Map<String, Object> alerts = new HashMap<>();
+        alerts.put("unreadEmails", 0);
+        alerts.put("urgentChecks", 0);
+        alerts.put("lowFuel", 0);
+        alerts.put("lowTankCount", 0);
+        return ResponseEntity.ok(alerts);
     }
 }
 

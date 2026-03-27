@@ -40,7 +40,7 @@ import {
   Vehicle
 } from './types.ts';
 import { Plus } from 'lucide-react';
-import { websocketService } from './services/websocketService.ts';
+import { alertsPoller } from './services/alertsPoller.ts';
 import { api, clearAuthSession, loadAuthSession } from './services/apiClient.ts';
 import { config } from './services/config.ts';
 import BackendError from './components/BackendError.tsx';
@@ -161,8 +161,7 @@ export default function App() {
           if (session.vehicleId) setSellerVehicleId(session.vehicleId);
           if (session.role === 'seller') navigate('/seller', { replace: true });
           else navigate('/dashboard', { replace: true });
-          websocketService.connect(session.token, 5);
-          websocketService.onAlerts((payload) => {
+          alertsPoller.onAlerts((payload) => {
             setAlertsOverride({
               emails: payload.unreadEmails,
               accounting: payload.urgentChecks,
@@ -170,7 +169,7 @@ export default function App() {
               stock: payload.lowTankCount
             });
           });
-          websocketService.onMaxRetries(() => console.warn('WebSocket reached max retries'));
+          alertsPoller.start(30000);
         } else {
           clearAuthSession();
         }
@@ -186,12 +185,6 @@ export default function App() {
     })();
   }, [navigate]);
 
-  useEffect(() => {
-    if (!isAuthenticated || !currentUsername) return;
-    const token = window.localStorage.getItem('olivemanager_token');
-    if (!token) return;
-    websocketService.connect(token, 5);
-  }, [isAuthenticated, currentUsername]);
 
   const addLog = (user: string, action: string, details: string, amount?: number) => {
     const newLog: LogEntry = {
@@ -206,6 +199,7 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    alertsPoller.stop();
     setIsAuthenticated(false);
     setSellerVehicleId('');
     setCurrentUsername('');
