@@ -5,5 +5,7 @@ frontend/.env
 backend/src/main/resources/application.properties
 # Docker compose secrets — never commit the real env file
 .env
+# Default credentials file with sensitive information
+DEFAULT_CREDENTIALS.md
 terraform
 terraform/*
