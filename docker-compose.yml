@@ -50,6 +50,8 @@ services:
     image: haytam265684/frontend-olive:latest
     container_name: olivepro-frontend
     restart: unless-stopped
+    expose:
+      - "80"
     environment:
       VITE_API_BASE_URL: ${VITE_API_BASE_URL:-http://backend:8080/api}
     networks:
