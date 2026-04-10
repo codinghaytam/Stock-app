@@ -8,7 +8,6 @@ import com.olivepro.exception.BusinessRuleException;
 import com.olivepro.exception.ResourceNotFoundException;
 import com.olivepro.repository.TankRepository;
 import com.olivepro.util.WeightedAverageUtil;
-import com.olivepro.websocket.AlertsBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -21,10 +20,9 @@ public class TankService {
     private static final Logger log = LoggerFactory.getLogger(TankService.class);
     private final TankRepository repo;
     private final ActivityLogService logService;
-    private final AlertsBroadcaster broadcaster;
 
-    public TankService(TankRepository repo, ActivityLogService logService, AlertsBroadcaster broadcaster) {
-        this.repo = repo; this.logService = logService; this.broadcaster = broadcaster;
+    public TankService(TankRepository repo, ActivityLogService logService) {
+        this.repo = repo; this.logService = logService;
     }
 
     public List<Tank> getAll() { return repo.findAllByOrderByCreatedAtDesc(); }
@@ -60,9 +58,11 @@ public class TankService {
         logService.log(username, "Citerne", "Suppression: " + t.getName(), null);
     }
 
-    /** Fill a tank and recalculate weighted averages. Called internally. */
+    /**
+     * Fill a tank and recalculate weighted averages. Called internally.
+     */
     @Transactional
-    public Tank fill(Long tankId, double qty, double acidity, double waxes, double unitCost) {
+    public void fill(Long tankId, double qty, double acidity, double waxes, double unitCost) {
         Tank t = getById(tankId);
         double newLevel = t.getCurrentLevel() + qty;
         if (newLevel > t.getCapacity())
@@ -73,12 +73,14 @@ public class TankService {
         t.setCurrentLevel(newLevel);
         updateStatus(t);
         log.info("Tank {} filled +{}L, level={}", t.getName(), qty, newLevel);
-        return repo.save(t);
+        repo.save(t);
     }
 
-    /** Drain a tank. Called internally. */
+    /**
+     * Drain a tank. Called internally.
+     */
     @Transactional
-    public Tank drain(Long tankId, double qty) {
+    public void drain(Long tankId, double qty) {
         Tank t = getById(tankId);
         if (t.getCurrentLevel() < qty)
             throw new BusinessRuleException("Niveau insuffisant dans " + t.getName() +
@@ -87,7 +89,7 @@ public class TankService {
         if (t.getCurrentLevel() == 0) { t.setAcidity(0); t.setWaxes(0); t.setAvgCost(0); }
         updateStatus(t);
         log.info("Tank {} drained -{}L, level={}", t.getName(), qty, t.getCurrentLevel());
-        return repo.save(t);
+        repo.save(t);
     }
 
     @Transactional
@@ -100,7 +102,6 @@ public class TankService {
         fill(req.getDestTankId(), req.getQuantity(), srcAcidity, srcWaxes, srcCost);
         logService.log(username, "Transfert", "De " + req.getSourceTankId() + " vers " +
                 req.getDestTankId() + " : " + req.getQuantity() + "L", null);
-        broadcaster.broadcast();
     }
 
     private void updateStatus(Tank t) {
@@ -109,4 +110,3 @@ public class TankService {
         else t.setStatus(TankStatus.FILLING);
     }
 }
-

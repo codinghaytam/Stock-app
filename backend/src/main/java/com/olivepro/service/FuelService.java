@@ -11,9 +11,6 @@ import com.olivepro.enums.PaymentMethod;
 import com.olivepro.exception.InsufficientStockException;
 import com.olivepro.repository.FuelLogRepository;
 import com.olivepro.repository.VehicleRepository;
-import com.olivepro.websocket.AlertsBroadcaster;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -23,7 +20,6 @@ import java.util.List;
 @Service
 public class FuelService {
 
-    private static final Logger log = LoggerFactory.getLogger(FuelService.class);
 
     @Value("${app.fuel.low-stock-threshold:500}")
     private double threshold;
@@ -32,14 +28,11 @@ public class FuelService {
     private final VehicleRepository vehicleRepo;
     private final AccountingService accountingService;
     private final ActivityLogService logService;
-    private final AlertsBroadcaster broadcaster;
 
     public FuelService(FuelLogRepository repo, VehicleRepository vehicleRepo,
-                       AccountingService accountingService, ActivityLogService logService,
-                       AlertsBroadcaster broadcaster) {
+                       AccountingService accountingService, ActivityLogService logService) {
         this.repo = repo; this.vehicleRepo = vehicleRepo;
         this.accountingService = accountingService; this.logService = logService;
-        this.broadcaster = broadcaster;
     }
 
     public List<FuelLog> getAll() { return repo.findAllByOrderByCreatedAtDesc(); }
@@ -83,7 +76,6 @@ public class FuelService {
 
         logService.log(username, "Carburant", req.getType() + " " + req.getQuantity() + "L" +
                 (plate != null ? " (" + plate + ")" : ""), req.getCost());
-        broadcaster.broadcast();
         return saved;
     }
 
@@ -93,4 +85,3 @@ public class FuelService {
         logService.log(username, "Carburant", "Suppression log id=" + id, null);
     }
 }
-

@@ -4,12 +4,9 @@ import com.olivepro.domain.*;
 import com.olivepro.dto.request.*;
 import com.olivepro.enums.CheckStatus;
 import com.olivepro.enums.Currency;
-import com.olivepro.enums.ExpenseCategory;
 import com.olivepro.enums.PaymentMethod;
-import com.olivepro.exception.BusinessRuleException;
 import com.olivepro.exception.ResourceNotFoundException;
 import com.olivepro.repository.*;
-import com.olivepro.websocket.AlertsBroadcaster;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -27,14 +24,13 @@ public class AccountingService {
     private final BankAccountRepository bankAccountRepo;
     private final TransactionRepository txRepo;
     private final ActivityLogService logService;
-    private final AlertsBroadcaster broadcaster;
 
     public AccountingService(ExpenseRepository expenseRepo, BankCheckRepository checkRepo,
                               BankAccountRepository bankAccountRepo, TransactionRepository txRepo,
-                              ActivityLogService logService, AlertsBroadcaster broadcaster) {
+                              ActivityLogService logService) {
         this.expenseRepo = expenseRepo; this.checkRepo = checkRepo;
         this.bankAccountRepo = bankAccountRepo; this.txRepo = txRepo;
-        this.logService = logService; this.broadcaster = broadcaster;
+        this.logService = logService;
     }
 
     // ─── EXPENSES ────────────────────────────────────────────────────────────
@@ -91,7 +87,7 @@ public class AccountingService {
         com.olivepro.dto.request.ExpenseRequest req = new com.olivepro.dto.request.ExpenseRequest();
         req.setDescription(description); req.setAmount(amount);
         req.setCategory(com.olivepro.enums.ExpenseCategory.AUTRE);
-        req.setPaymentMethod(amount >= 0 ? PaymentMethod.ESPECE : PaymentMethod.ESPECE);
+        req.setPaymentMethod(PaymentMethod.ESPECE);
         req.setDate(java.time.LocalDate.now());
         createExpense(req, username);
     }
@@ -138,7 +134,6 @@ public class AccountingService {
                 .notes(req.getNotes()).createdBy(username).build();
         BankCheck saved = checkRepo.save(c);
         logService.log(username, "Chèque", req.getDirection() + " N°" + req.getCheckNumber() + " " + req.getAmount() + " DH", req.getAmount());
-        broadcaster.broadcast();
         return saved;
     }
 
@@ -148,7 +143,6 @@ public class AccountingService {
         c.setStatus(newStatus);
         BankCheck saved = checkRepo.save(c);
         logService.log(username, "Chèque", "Statut mis à jour: " + newStatus + " pour N°" + c.getCheckNumber(), null);
-        broadcaster.broadcast();
         return saved;
     }
 
