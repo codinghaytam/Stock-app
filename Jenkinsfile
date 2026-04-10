@@ -49,7 +49,6 @@ pipeline {
                         ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "mkdir -p $VM_APP_DIR/grafana/provisioning/datasources"
                         scp -o StrictHostKeyChecking=no docker-compose.yml         $VM_USER@$VM_HOST:$VM_APP_DIR/
                         scp -o StrictHostKeyChecking=no nginx.conf                  $VM_USER@$VM_HOST:$VM_APP_DIR/nginx.conf
-                        ssh -o StrictHostKeyChecking=no $VM_USER@$VM_HOST "mv -f $VM_APP_DIR/nginx.conf.tmp $VM_APP_DIR/nginx.conf"
                         scp -o StrictHostKeyChecking=no prometheus.yml             $VM_USER@$VM_HOST:$VM_APP_DIR/
                         scp -o StrictHostKeyChecking=no tempo.yml                  $VM_USER@$VM_HOST:$VM_APP_DIR/
                         scp -o StrictHostKeyChecking=no grafana/provisioning/datasources/* $VM_USER@$VM_HOST:$VM_APP_DIR/grafana/provisioning/datasources/
