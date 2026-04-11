@@ -27,7 +27,8 @@ services:
       APP_JWT_SECRET: ${JWT_SECRET}
       APP_JWT_EXPIRATION_MS: ${JWT_EXPIRATION_MS:-86400000}
       # ── CORS ─────────────────────────────────────────────────────────────
-      APP_CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://localhost:3000}
+      # Re-enable the specific IP address the developer is running onto
+      APP_CORS_ALLOWED_ORIGINS: ${CORS_ALLOWED_ORIGINS:-http://localhost,http://localhost:80,http://localhost:3000,http://84.8.223.18,http://84.8.223.18:80,http://84.8.223.18:8080}
       # ── Database & Logging ────────────────────────────────────────────────
       SPRING_JPA_SHOW_SQL: ${JPA_SHOW_SQL:-false}
       SPRING_JPA_PROPERTIES_HIBERNATE_DIALECT: org.hibernate.dialect.PostgreSQLDialect
