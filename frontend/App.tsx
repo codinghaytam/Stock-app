@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import { Navigate, Route, Routes, useNavigate, useLocation } from 'react-router-dom';
 import Sidebar from '@/components/Sidebar.tsx';
 import Dashboard from '@/components/Dashboard.tsx';
 import StockManager from '@/components/StockManager.tsx';
@@ -68,12 +68,16 @@ const useLocalStorage = <T,>(key: string, initialValue: T): [T, React.Dispatch<R
 };
 
 export default function App() {
+  const location = useLocation();
   const navigate = useNavigate();
   const [backendDown, setBackendDown] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [userRole, setUserRole] = useState<'admin' | 'seller'>('admin');
   const [currentUsername, setCurrentUsername] = useState('');
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(() => {
+    const path = window.location.pathname.substring(1);
+    return path || 'dashboard';
+  });
   const [showTransactionForm, setShowTransactionForm] = useState(false);
   const [sellerVehicleId, setSellerVehicleId] = useState('');
   const [authReady, setAuthReady] = useState(false);
@@ -125,6 +129,11 @@ export default function App() {
   const displayedAlerts = alertsOverride ?? systemAlerts;
 
   useEffect(() => {
+    const path = location.pathname.substring(1);
+    if (path && path !== 'login' && path !== '') setActiveTab(path);
+  }, [location.pathname]);
+
+  useEffect(() => {
     const savedAuth = window.localStorage.getItem('auth_session');
     if (!savedAuth) return;
     try {
@@ -159,8 +168,10 @@ export default function App() {
           setUserRole(me.role === 'SUPER_ADMIN' || me.role === 'ADMIN' ? 'admin' : 'seller');
           setCurrentUsername(me.username);
           if (session.vehicleId) setSellerVehicleId(session.vehicleId);
-          if (session.role === 'seller') navigate('/seller', { replace: true });
-          else navigate('/dashboard', { replace: true });
+          if (window.location.pathname === '/' || window.location.pathname === '/login') {
+            if (session.role === 'seller') navigate('/seller', { replace: true });
+            else navigate('/dashboard', { replace: true });
+          }
           alertsPoller.onAlerts((payload) => {
             setAlertsOverride({
               emails: payload.unreadEmails,
