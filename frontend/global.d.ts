@@ -17,5 +17,10 @@ declare global {
   }
 }
 
-export {};
+// Declare env.js as a valid module (generated at runtime by docker-entrypoint.sh)
+declare module './env.js' {
+  // This module is dynamically generated and sets window._env_
+  export {};
+}
 
+export {};

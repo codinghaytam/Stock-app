@@ -11,8 +11,7 @@ export default defineConfig(({ mode }) => {
       },
       plugins: [react()],
       define: {
-        'process.env.API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL),
-        'process.env.WS_URL': JSON.stringify(env.VITE_WS_URL)
+        'process.env.API_BASE_URL': JSON.stringify(env.VITE_API_BASE_URL)
       },
       resolve: {
         alias: {

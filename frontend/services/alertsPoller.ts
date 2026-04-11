@@ -1,3 +1,5 @@
+import { config } from './config';
+
 type AlertsPayload = {
   unreadEmails: number;
   urgentChecks: number;
@@ -23,7 +25,7 @@ class AlertsPoller {
       const token = localStorage.getItem('olivemanager_token');
       if (!token) return;
 
-      const response = await fetch('/api/auth/alerts', {
+      const response = await fetch(`${config.apiBaseUrl}/auth/alerts`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -58,4 +60,3 @@ class AlertsPoller {
 
 export const alertsPoller = new AlertsPoller();
 export type { AlertsPayload };
-
