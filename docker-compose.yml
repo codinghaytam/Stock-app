@@ -16,7 +16,7 @@ services:
     restart: unless-stopped
     env_file:
       - .env
-    expose:
+    ports:
       - "8080:8090"
     environment:
       # ── PostgreSQL ───────────────────────────────────────────────────────
