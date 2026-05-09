@@ -5,6 +5,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.security.access.AccessDeniedException;
+import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
@@ -59,6 +60,11 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(org.springframework.security.authentication.LockedException.class)
     public ResponseEntity<Map<String, Object>> handleLocked(org.springframework.security.authentication.LockedException ex, HttpServletRequest request) {
         return buildResponse(ex, HttpStatus.FORBIDDEN, request);
+    }
+
+    @ExceptionHandler(BadCredentialsException.class)
+    public ResponseEntity<Map<String, Object>> handleBadCredentials(BadCredentialsException ex, HttpServletRequest request) {
+        return buildResponse(ex, HttpStatus.UNAUTHORIZED, request);
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)

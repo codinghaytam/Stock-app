@@ -35,7 +35,7 @@ public class AuthService {
     public LoginResponse login(String username, String password) {
         log.info("Attempting login for user={}", username);
         Authentication auth = authenticationManager.authenticate(new UsernamePasswordAuthenticationToken(username, password));
-        User user = userRepository.findByUsername(username).orElseThrow(() -> new RuntimeException("User not found"));
+        User user = userRepository.findByUsernameIgnoreCase(username).orElseThrow(() -> new RuntimeException("User not found"));
 
         Map<String, Object> claims = new HashMap<>();
         claims.put("role", user.getRole().name());
@@ -50,7 +50,7 @@ public class AuthService {
     }
 
     public MeResponse getMe(String username) {
-        User user = userRepository.findByUsername(username)
+        User user = userRepository.findByUsernameIgnoreCase(username)
                 .orElseThrow(() -> new ResourceNotFoundException("User not found: " + username));
         return new MeResponse(user.getId(), user.getUsername(), user.getRole(),
                 user.isBlocked(), user.getVehicleId(), user.getLastLogin());
