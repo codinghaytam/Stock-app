@@ -9,3 +9,4 @@ backend/src/main/resources/application.properties
 DEFAULT_CREDENTIALS.md
 terraform
 terraform/*
+backend/target/
